@@ -1,8 +1,16 @@
 import express from "express";
 import config from "./config.js"
-import dataRouter from "./routes/data.router.js"
+import dataRouter from "./routes/data.router.js";
+import cors from 'cors';
 
 const app = express();
+
+app.use(cors({
+  origin: `${config.FRONT_URL}`, 
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE"]
+}));
+
 
 app.use(express.json())
 

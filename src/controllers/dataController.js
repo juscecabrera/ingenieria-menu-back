@@ -7,7 +7,8 @@ import Plate from "../dao/models/Plate.js";
 //READ - Conseguir todos los platos
 export const getPlates = async (req, res) => {
     try {
-        const plates = await Plate.findAll();
+        // const plates = await Plate.findAll();
+        const plates = {'Plato 1': 10}
         res.status(200).json(plates);
       } catch (err) {
         res.status(500).json({ error: 'Error fetching plates.' });
@@ -32,10 +33,13 @@ export const getPlatesById = async (req, res) => {
 //CREATE - Crear un nuevo plato
 //Cambiar el req.body como sea necesario
 export const createPlates = async (req, res) => {
-    const { name, category, price } = req.body;
+    // const { CodInt, Mes_plato, Categoria_plato, Nombre_plato, Cantidad_vendida_plato, Precio_plato, Costo_plato, Dias_plato   } = req.body;
+
+
     try {
-        const newPlate = await Plate.create({ name, category, price });
-        res.status(201).json(newPlate);
+        // const newPlate = await Plate.create({ name, category, price });
+        console.log(req.body);
+        // res.status(201).json(newPlate);
     } catch (err) {
         res.status(500).json({ error: 'Error creating plate.' });
     }
