@@ -1,6 +1,7 @@
 import express from "express";
 import config from "./config.js"
 import dataRouter from "./routes/data.router.js";
+import costsRouter from "./routes/costs.router.js";
 import cors from 'cors';
 
 const app = express();
@@ -15,6 +16,7 @@ app.use(cors({
 app.use(express.json())
 
 app.use("/api", dataRouter)
+app.use("/api", costsRouter)
 
 app.get("/", (req, res) => {
     res.json({message: "Server active"})
