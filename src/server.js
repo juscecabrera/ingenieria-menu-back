@@ -8,6 +8,9 @@ app.use(express.json())
 
 app.use("/api", dataRouter)
 
+app.get("/", (req, res) => {
+    res.json({message: "Server active"})
+})
 
 const PORT = config.PORT;
 
