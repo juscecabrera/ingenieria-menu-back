@@ -2,7 +2,7 @@ import { and, Sequelize } from "sequelize";
 import config from "../config.js";
 import Plato from "../dao/models/Plate.js";
 import convertToMonthYear from "../utils/convertToMonthYear.js";
-import { omnesFunction, BCGPop, ADL, IRP, IndexPopularidad } from './informesFunctions/informesFunctions.js'
+import { omnesFunction, BCGPop, ADL, IRP, IndexPopularidad, CostoMargenAnalysis, Miller, multiCriterioFunction, multiCriterioResultsOnly } from './informesFunctions/informesFunctions.js'
 
 // await sequelize.authenticate();
 
@@ -109,17 +109,32 @@ export const createInforms = async (req, res) => {
     const mesFormat = convertToMonthYear(Informes_Mes)
 
     // const omnesResult = await omnesFunction(mesFormat, Informes_Categoria)
-    // const BCGResults = await BCGPop(mesFormat, Informes_Categoria)
     // const ADLResults = await ADL(mesFormat, Informes_Categoria)    
-    // const IRPResults = await IRP(mesFormat, Informes_Categoria)
-    // const IPResults = await IndexPopularidad(mesFormat, Informes_Categoria)
+    const IRPResults = await IRP(mesFormat, Informes_Categoria)
+    const IndexPopularidadResults = await IndexPopularidad(mesFormat, Informes_Categoria)
+    const CostoMargenAnalysisResults = await CostoMargenAnalysis(mesFormat, Informes_Categoria);
+    const BCGResults = await BCGPop(mesFormat, Informes_Categoria)
+    const MillerResults = await Miller(mesFormat, Informes_Categoria);
+    
+    const multiCriterioObject = {
+        BCGResults,
+        CostoMargenAnalysisResults,
+        MillerResults,
+        IRPResults,
+        IndexPopularidadResults
+    }
 
-    
-    
+    const multiCriterioResults = multiCriterioFunction(multiCriterioObject) //los puntajes detallados
+
+
+    const multiCriterioFinal = multiCriterioResultsOnly(multiCriterioResults) //solo los puntajes
 
     try {
         // console.log(platos);        
-        console.log(IPResults);
+        // console.log(multiCriterioResults);
+        // console.log(JSON.stringify(multiCriterioResults, null));
+        console.log(multiCriterioFinal);
+        
         
     } catch (error) {
         res.status(500).json({ error: 'Error creating inform.' });

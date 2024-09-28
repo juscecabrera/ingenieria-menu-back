@@ -484,3 +484,230 @@ export const IndexPopularidad = async (mesFormat, Informes_Categoria) => {
 
     return resultado;
 }
+
+export const CostoMargenAnalysis = async (mesFormat, Informes_Categoria) => {
+    // Obtener los platos y calcular los costos y márgenes
+    const platos = await Plato.findAll({
+        attributes: [
+            'Nombre',
+            [Sequelize.literal('Costo'), 'costo'],
+            [Sequelize.literal('(Cantidad_vendida * (Valor_Venta - Costo))'), 'margenTotal']
+        ],
+        where: {
+            Mes_plato: mesFormat,
+            Categoria: Informes_Categoria
+        }
+    });
+
+    // Calcular el costo promedio y el margen promedio
+    let sumaCostos = 0;
+    let sumaMargenes = 0;
+
+    platos.forEach(plato => {
+        sumaCostos += parseFloat(plato.get('costo'));
+        sumaMargenes += parseFloat(plato.get('margenTotal'));
+    });
+
+    const cantidadPlatos = platos.length;
+    const costoPromedio = sumaCostos / cantidadPlatos;
+    const margenPromedio = sumaMargenes / cantidadPlatos;
+
+    // Crear un objeto con el nombre del plato como clave y los atributos como valor
+    const resultado = {};
+    platos.forEach(plato => {
+        const nombre = plato.get('Nombre');
+        const costo = parseFloat(plato.get('costo'));
+        const margen = parseFloat(plato.get('margenTotal'));
+
+        // Asignar Costo Ponderado
+        const costoPonderado = costo < costoPromedio ? 'Bajo' : 'Alto';
+
+        // Asignar MCP
+        const mcp = margen < margenPromedio ? 'Bajo' : 'Alto';
+
+        // Asignar CMA
+        let cma;
+        if (costoPonderado === 'Bajo' && mcp === 'Alto') {
+            cma = 'Selecto';
+        } else if (costoPonderado === 'Alto' && mcp === 'Alto') {
+            cma = 'Estandar';
+        } else if (costoPonderado === 'Bajo' && mcp === 'Bajo') {
+            cma = 'Durmiente';
+        } else {
+            cma = 'Problema';
+        }
+
+        // Guardar los atributos en el objeto resultado
+        resultado[nombre] = [costoPonderado, mcp, cma];
+    });
+
+    return resultado;
+};
+
+export const Miller = async (mesFormat, Informes_Categoria) => {
+    // Obtener todos los platos y sus atributos necesarios
+    const platos = await Plato.findAll({
+        attributes: ['Nombre', 'Costo', 'Cantidad_vendida'],
+        where: {
+            Mes_plato: mesFormat,
+            Categoria: Informes_Categoria,
+        }
+    });
+
+    // Inicializar variables para calcular promedios
+    let sumaCostos = 0;
+    let sumaCantidadVendida = 0;
+    const cantidadPlatos = platos.length;
+
+    // Sumar todos los costos y cantidades vendidas
+    platos.forEach(plato => {
+        sumaCostos += parseFloat(plato.get('Costo'));
+        sumaCantidadVendida += parseFloat(plato.get('Cantidad_vendida'));
+    });
+
+    // Calcular promedios
+    const costoPromedio = sumaCostos / cantidadPlatos;
+    const cantidadVendidaPromedio = sumaCantidadVendida / cantidadPlatos;
+
+    // Crear un objeto para almacenar los resultados
+    const resultado = {};
+
+    // Evaluar cada plato y asignar atributos
+    platos.forEach(plato => {
+        const nombre = plato.get('Nombre');
+        const costo = parseFloat(plato.get('Costo'));
+        const cantidadVendida = parseFloat(plato.get('Cantidad_vendida'));
+
+        // Determinar atributos basados en promedios
+        const costoAlimentos = costo < costoPromedio ? "Bajo" : "Alto";
+        const cantidadVendidaAtributo = cantidadVendida < cantidadVendidaPromedio ? "Bajo" : "Alto";
+
+        // Determinar el atributo MM
+        let mm;
+        if (costoAlimentos === "Bajo" && cantidadVendidaAtributo === "Alto") {
+            mm = "Ganador";
+        } else if (costoAlimentos === "Alto" && cantidadVendidaAtributo === "Alto") {
+            mm = "Marginal Alto";
+        } else if (costoAlimentos === "Bajo" && cantidadVendidaAtributo === "Bajo") {
+            mm = "Marginal Bajo";
+        } else {
+            mm = "Perdedor";
+        }
+
+        // Almacenar resultados en el objeto
+        resultado[nombre] = [costoAlimentos, cantidadVendidaAtributo, mm];
+    });
+
+    return resultado;
+};
+
+export const multiCriterioFunction = (multiCriterio) => {
+    const resultadosArray = [];
+
+    const calcularPuntaje = (bcgCategory, costoMargen, miller, irp, indexPopularidad) => {
+        let puntaje = 0;
+
+        // Calcular puntaje según el criterio BCG
+        switch (bcgCategory) {
+            case 'Estrella':
+                puntaje += 4;
+                break;
+            case 'Impopular':
+                puntaje += 3;
+                break;
+            case 'Popular':
+                puntaje += 2;
+                break;
+            case 'Perdedor':
+                puntaje += 1;
+                break;
+        }
+
+        // Calcular puntaje según CostoMargen
+        switch (costoMargen) {
+            case 'Selecto':
+                puntaje += 4;
+                break;
+            case 'Estandar':
+                puntaje += 3;
+                break;
+            case 'Durmiente':
+                puntaje += 2;
+                break;
+            case 'Problema':
+                puntaje += 1;
+                break;
+        }
+
+        // Calcular puntaje según Miller
+        switch (miller) {
+            case 'Ganador':
+                puntaje += 4;
+                break;
+            case 'Marginal Alto':
+                puntaje += 3;
+                break;
+            case 'Marginal Bajo':
+                puntaje += 2;
+                break;
+            case 'Perdedor':
+                puntaje += 1;
+                break;
+        }
+
+        // Calcular puntaje según IRP
+        puntaje += (irp > 1) ? 4 : 1;
+
+        // Calcular puntaje según IndexPopularidad
+        puntaje += (indexPopularidad > 1) ? 4 : 1;
+
+        return puntaje;
+    };
+
+    const nombresPlatos = Object.keys(multiCriterio.BCGResults);
+    
+    nombresPlatos.forEach(nombrePlato => {
+        const bcgCategory = multiCriterio.BCGResults[nombrePlato].BCGCategory;
+        const costoMargen = multiCriterio.CostoMargenAnalysisResults[nombrePlato][2]; // CMA
+        const miller = multiCriterio.MillerResults[nombrePlato][2]; // MM
+        const irp = multiCriterio.IRPResults[nombrePlato];
+        const indexPopularidad = multiCriterio.IndexPopularidadResults[nombrePlato];
+
+        const puntajeBCG = (bcgCategory === 'Estrella') ? 4 : (bcgCategory === 'Impopular') ? 3 : (bcgCategory === 'Popular') ? 2 : 1;
+        const puntajeCostoMargen = (costoMargen === 'Selecto') ? 4 : (costoMargen === 'Estandar') ? 3 : (costoMargen === 'Durmiente') ? 2 : 1;
+        const puntajeMiller = (miller === 'Ganador') ? 4 : (miller === 'Marginal Alto') ? 3 : (miller === 'Marginal Bajo') ? 2 : 1;
+        const puntajeIRP = (irp > 1) ? 4 : 1;
+        const puntajeIndexPopularidad = (indexPopularidad > 1) ? 4 : 1;
+
+        const totalPuntaje = puntajeBCG + puntajeCostoMargen + puntajeMiller + puntajeIRP + puntajeIndexPopularidad;
+
+        const resultado = {
+            nombre: nombrePlato,
+            resultados: [
+                { BCGCategory: [bcgCategory, puntajeBCG] },
+                { costoMargen: [costoMargen, puntajeCostoMargen] },
+                { miller: [miller, puntajeMiller] },
+                { IRP: [irp, puntajeIRP] },
+                { IndexPopularidad: [indexPopularidad, puntajeIndexPopularidad] }
+            ],
+            Puntaje_Multicriterio: totalPuntaje
+        };
+
+        resultadosArray.push(resultado);
+    });
+
+    return resultadosArray;
+};
+
+export const multiCriterioResultsOnly = (resultados) => {
+    const puntajesObjeto = {};
+
+    resultados.forEach(resultado => {
+        const nombre = resultado.nombre;
+        const puntaje = resultado.Puntaje_Multicriterio;
+
+        puntajesObjeto[nombre] = puntaje;
+    });
+
+    return puntajesObjeto;
+};
