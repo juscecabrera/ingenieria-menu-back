@@ -385,3 +385,102 @@ export async function ADL(mesFormat, Informes_Categoria) {
     return resultado
 
 }
+
+export const IRP = async (mesFormat, Informes_Categoria) => {
+    /*
+    4to informe: IRP
+
+    % de margen del plato sobre el total 
+    % de venta del plato sobre el total
+    
+    IRP = % de margen / % de venta
+
+    Mayor a 1 o menor a 1.
+
+    1. % de margen = (Cantidad_vendida * Margen) / suma de margenes totales
+    2. % de venta = (Cantidad vendida * Valor_Venta) / suma de ventas totales
+
+    
+    */ 
+
+    const platos = await Plato.findAll({
+        attributes: [
+            'Nombre',
+            [Sequelize.literal('(Cantidad_vendida * (Valor_Venta - Costo))'), 'margenTotal'],
+            [Sequelize.literal('(Cantidad_vendida * Valor_Venta)'), 'ventasTotales']
+        ],
+        where: {
+            Mes_plato: mesFormat,
+            Categoria: Informes_Categoria,
+        }
+    });
+
+    // Variables para las sumas totales
+    let sumaMargenTotal = 0;
+    let sumaVentasTotales = 0;
+
+    // Calcular las sumas totales
+    platos.forEach(plato => {
+        sumaMargenTotal += parseFloat(plato.get('margenTotal'));   // Suma del margen total
+        sumaVentasTotales += parseFloat(plato.get('ventasTotales')); // Suma de ventas totales
+    });
+
+    // Crear un objeto con el nombre del plato como clave y un array con los porcentajes como valor
+    const resultado = {};
+    platos.forEach(plato => {
+        const nombre = plato.get('Nombre');
+        const margenTotal = plato.get('margenTotal');
+        const ventasTotales = plato.get('ventasTotales');
+
+        // Calcular el porcentaje de margen y ventas totales
+        const porcentajeMargen = Number(((margenTotal / sumaMargenTotal) * 100).toFixed(2));
+        const porcentajeVentas = Number(((ventasTotales / sumaVentasTotales) * 100).toFixed(2));
+
+        // Guardar ambos valores en un array
+        const IRPFinal = Number((porcentajeMargen / porcentajeVentas).toFixed(2))
+        resultado[nombre] = IRPFinal;
+    });
+
+    return resultado;
+}
+
+export const IndexPopularidad = async (mesFormat, Informes_Categoria) => {
+    const platos = await Plato.findAll({
+        attributes: [
+            'Nombre',
+            'Cantidad_vendida',
+            'Dias_en_carta'
+        ],
+        where: {
+            Mes_plato: mesFormat,
+            Categoria: Informes_Categoria,
+        }
+    });
+
+    // Calcular la suma total de cantidades vendidas y días en carta
+    let sumaCantidadVendidaTotal = 0;
+    let sumaDiasEnCartaTotal = 0;
+    
+    platos.forEach(plato => {
+        sumaCantidadVendidaTotal += parseFloat(plato.get('Cantidad_vendida')); // Sumar cantidades vendidas
+        sumaDiasEnCartaTotal += parseFloat(plato.get('Dias_en_carta')); // Sumar días en carta
+    });
+
+    // Crear un objeto con el nombre del plato como clave y un array con ambos porcentajes como valor
+    const resultado = {};
+    platos.forEach(plato => {
+        const nombre = plato.get('Nombre');
+        const cantidadVendida = parseFloat(plato.get('Cantidad_vendida'));
+        const diasEnCarta = parseFloat(plato.get('Dias_en_carta'));
+
+        // Calcular los porcentajes
+        const porcentajeCantidadVendida = Number(((cantidadVendida / sumaCantidadVendidaTotal) * 100).toFixed(2));
+        const porcentajeDiasEnCarta = Number(((diasEnCarta / sumaDiasEnCartaTotal) * 100).toFixed(2));
+
+        // Guardar ambos porcentajes en el objeto resultado
+        const IPFinal = Number((porcentajeCantidadVendida / porcentajeDiasEnCarta).toFixed(2))
+        resultado[nombre] = IPFinal;
+    });
+
+    return resultado;
+}

@@ -2,7 +2,7 @@ import { and, Sequelize } from "sequelize";
 import config from "../config.js";
 import Plato from "../dao/models/Plate.js";
 import convertToMonthYear from "../utils/convertToMonthYear.js";
-import { omnesFunction, BCGPop, ADL } from './informesFunctions/informesFunctions.js'
+import { omnesFunction, BCGPop, ADL, IRP, IndexPopularidad } from './informesFunctions/informesFunctions.js'
 
 // await sequelize.authenticate();
 
@@ -110,11 +110,17 @@ export const createInforms = async (req, res) => {
 
     // const omnesResult = await omnesFunction(mesFormat, Informes_Categoria)
     // const BCGResults = await BCGPop(mesFormat, Informes_Categoria)
-    // const ADLResults = await ADL(mesFormat, Informes_Categoria)
+    // const ADLResults = await ADL(mesFormat, Informes_Categoria)    
+    // const IRPResults = await IRP(mesFormat, Informes_Categoria)
+    // const IPResults = await IndexPopularidad(mesFormat, Informes_Categoria)
 
+    
+    
 
     try {
         // console.log(platos);        
+        console.log(IPResults);
+        
     } catch (error) {
         res.status(500).json({ error: 'Error creating inform.' });
     }
