@@ -2,6 +2,8 @@ import { Sequelize, Op, and } from "sequelize";
 import config from "../config.js";
 import Plato from "../dao/models/Plate.js";
 import convertToMonthYear from "../utils/convertToMonthYear.js";
+import { omnesFunction } from './informesFunctions/informesFunctions.js'
+// import { omnesFunction } from "./informesFunctions.js/informesFunctions.js";
 
 // await sequelize.authenticate();
 
@@ -111,102 +113,10 @@ export const createInforms = async (req, res) => {
 
     //aqui debe estar toda la logica para crear los informes
 
-    /*
-    1. Fetchear en la tabla Costos todas la fila menos id y mes SEGUN EL MES. 
-    2. Fetcher en la tabla Platos todas las FILAS menos ID SEGUN Mes_plato y Categoria
-
-    1. Omnes:
-    1er principio:
-
-    1. Calcular Valor de Venta mas ALTO o VA = SELECT Max(Valor_venta) FROM Platos WHERE Mes_Plato = mesFormat AND Categoria = Informes_Categoria
-
-    2. Calcular Valor de Venta mas BAJO o VB = SELECT Min(Valor_venta) FROM Platos WHERE Mes_Plato = mesFormat AND Categoria = Informes_Categoria
-
-    3. Calcular Amplitud de Gama = (VA - VB) / 3
-    */
-
-    const ValorVentaAlto = await Plato.findOne({
-        attributes: [[Sequelize.fn('MAX', Sequelize.col('Valor_Venta')), 'maxValorVenta']],
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria
-        }
-    })
-
-    const ValorVentaBajo = await Plato.findOne({
-        attributes: [[Sequelize.fn('MIN', Sequelize.col('Valor_Venta')), 'minValorVenta']],
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria
-        }
-    })
-
-    
-
-    
-    const VA = Number(ValorVentaAlto.get('maxValorVenta'))
-    const VB = Number(ValorVentaBajo.get('minValorVenta'))
-
-    const AmplitudGama = Number(((VA - VB) / 3).toFixed(2));
-
-    const Z1 = [VB, VB + AmplitudGama]
-
-    const Z2 = [VB + AmplitudGama, VB + (2* AmplitudGama)]
-
-    const Z3 = [VB + (2* AmplitudGama), VB + (3 * AmplitudGama)]
-
-
-    const platosZ1 = await Plato.count({
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-            Valor_Venta: {
-                [Sequelize.Op.between]: Z1
-        
-            }
-        }
-    })
-
-    const platosZ2 = await Plato.count({
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-            Valor_Venta: {
-                [Sequelize.Op.between]: Z2
-        
-            }
-        }
-    })
-
-    const platosZ3 = await Plato.count({
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-            Valor_Venta: {
-                [Sequelize.Op.between]: Z3
-        
-            }
-        }
-    })
-
-    const cumpleOmnes1 = platosZ1 + platosZ3 === platosZ2 ? true : false
-
-    /*
-    2do principio:
-        1. VA / VB = Apertura
-        2. Cuantos platos hay en ese mes en esa categoria
-        3. Hasta 9 platos: si Apertura es menor a 2.5, cumple
-            10 platos o mas: si Apertura es menor a 3, cumple
-    
-    */ 
-
-    const apertura2 = VA / VB
-
-    
-
+    const omnesResult = await omnesFunction(mesFormat, Informes_Categoria)
 
     try {
-        console.log(cumpleOmnes1);
+        console.log(omnesResult);        
     } catch (error) {
         res.status(500).json({ error: 'Error creating inform.' });
     }
