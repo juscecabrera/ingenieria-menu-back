@@ -1,9 +1,8 @@
-import { Sequelize, Op, and } from "sequelize";
+import { and, Sequelize } from "sequelize";
 import config from "../config.js";
 import Plato from "../dao/models/Plate.js";
 import convertToMonthYear from "../utils/convertToMonthYear.js";
-import { omnesFunction } from './informesFunctions/informesFunctions.js'
-// import { omnesFunction } from "./informesFunctions.js/informesFunctions.js";
+import { omnesFunction, BCGPop, ADL } from './informesFunctions/informesFunctions.js'
 
 // await sequelize.authenticate();
 
@@ -109,14 +108,13 @@ export const createInforms = async (req, res) => {
 
     const mesFormat = convertToMonthYear(Informes_Mes)
 
-    //mesFormat = Mar-2024, Informes_Categoria = FONDOS
+    // const omnesResult = await omnesFunction(mesFormat, Informes_Categoria)
+    // const BCGResults = await BCGPop(mesFormat, Informes_Categoria)
+    // const ADLResults = await ADL(mesFormat, Informes_Categoria)
 
-    //aqui debe estar toda la logica para crear los informes
-
-    const omnesResult = await omnesFunction(mesFormat, Informes_Categoria)
 
     try {
-        console.log(omnesResult);        
+        // console.log(platos);        
     } catch (error) {
         res.status(500).json({ error: 'Error creating inform.' });
     }
