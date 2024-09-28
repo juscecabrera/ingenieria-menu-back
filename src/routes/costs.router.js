@@ -3,7 +3,7 @@ import { getCosts, createCosts, updateCosts, deleteCosts } from "../controllers/
 
 const router = Router()
 
-//Platos
+//Costos
 router.get('/costs', getCosts);
 router.post('/costs', createCosts);
 router.put('/costs/:id', updateCosts);

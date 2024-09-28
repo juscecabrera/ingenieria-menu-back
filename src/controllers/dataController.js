@@ -66,11 +66,12 @@ export const createPlates = async (req, res) => {
     }
 };
 
+//por testear
 export const updatePlate = async (req, res) => {
     const { id } = req.params;
     const { name, category, price } = req.body;
     try {
-        const plate = await Plate.findByPk(id);
+        const plate = await Plato.findByPk(id);
         if (plate) {
         plate.name = name;
         plate.category = category;
@@ -85,10 +86,11 @@ export const updatePlate = async (req, res) => {
     }
 }
 
-export const deletePlate = async (req, res) => {
+//por testear
+export const deletePlate = async (req, res) => { 
     const { id } = req.params;
     try {
-        const plate = await Plate.findByPk(id);
+        const plate = await Plato.findByPk(id);
         if (plate) {
         await plate.destroy();
         res.status(200).json({ message: 'Plate deleted successfully.' });
@@ -97,5 +99,18 @@ export const deletePlate = async (req, res) => {
         }
     } catch (err) {
         res.status(500).json({ error: 'Error deleting plate.' });
+    }
+}
+
+export const createInforms = async (req, res) => {
+    const { Informes_Mes, Informes_Categoria } = req.body
+
+    const mesFormat = convertToMonthYear(Informes_Mes)
+
+    //mesFormat = Mar-2024, Informes_Categoria = FONDOS
+    try {
+        console.log(mesFormat, Informes_Categoria);
+    } catch (error) {
+        res.status(500).json({ error: 'Error creating inform.' });
     }
 }

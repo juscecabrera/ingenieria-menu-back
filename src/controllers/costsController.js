@@ -1,5 +1,5 @@
 import Costos from "../dao/models/Costs.js"
-
+import convertToMonthYear from "../utils/convertToMonthYear.js";
 
 export const getCosts = async (req, res) => { 
     try {
@@ -13,6 +13,7 @@ export const getCosts = async (req, res) => {
 export const createCosts = async (req, res) => { 
     const { Sueldo_Cocina, Sueldo_Servicio, Sueldo_Administrativos, Alquiler, Depreciacion, Servicios_basicos, Publicidad, Internet, Otros, Mes } = req.body;
     
+    const mesFormat = convertToMonthYear(Mes)
 
     try {
         // Crea un nuevo registro en la tabla Platos
@@ -26,7 +27,7 @@ export const createCosts = async (req, res) => {
             Publicidad: Publicidad,
             Internet: Internet,
             Otros: Otros,
-            Mes: Mes
+            Mes: mesFormat
         });
 
         // Envía una respuesta exitosa con el nuevo registro
