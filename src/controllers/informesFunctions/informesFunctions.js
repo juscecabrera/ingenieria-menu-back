@@ -711,3 +711,87 @@ export const multiCriterioResultsOnly = (resultados) => {
 
     return puntajesObjeto;
 };
+
+export const PuntoEquilibrio = async (mesFormat, Informes_Categoria, costosFijos) => {
+    // Consulta para obtener los platos
+    const platos = await Plato.findAll({
+        attributes: [
+            'Nombre',
+            [Sequelize.literal('Valor_Venta'), 'Valor_Venta'], // Obtener el valor de venta
+            [Sequelize.literal('Costo'), 'Costo'], // Obtener el costo
+            [Sequelize.literal('(Cantidad_vendida * (Valor_Venta - Costo))'), 'margenTotal'], // Margen total
+            [Sequelize.literal('(Cantidad_vendida * Valor_Venta)'), 'ventasTotales'] // Ventas totales
+        ],
+        where: {
+            Mes_plato: mesFormat,
+            Categoria: Informes_Categoria,
+        }
+    });
+
+    // Procesar el resultado para obtener el objeto necesario
+    const platosArray = platos.map(plato => {
+        return {
+            Nombre: plato.get('Nombre'),
+            Valor_Venta: parseFloat(plato.get('Valor_Venta')),
+            Costo: parseFloat(plato.get('Costo')),
+            margenTotal: parseFloat(plato.get('margenTotal')),
+            ventasTotales: parseFloat(plato.get('ventasTotales'))
+        };
+    });
+
+    // Calcular el margen promedio
+    let sumaMargenes = 0;
+    let totalPlatos = platosArray.length;
+
+    platosArray.forEach(plato => {
+        const margen = plato.Valor_Venta - plato.Costo; // Margen por plato
+        sumaMargenes += margen;
+    });
+
+    const margenPromedio = sumaMargenes / totalPlatos;
+
+    // Calcular cuántos platos vender en total
+    const totalPlatosAVender = Math.ceil(costosFijos / margenPromedio);
+
+    // Inicializar el objeto de resultados
+    const ventasPorPlato = {};
+
+    // Calcular cuántos de cada plato se deben vender
+    let totalCostos = 0;
+    let totalVentas = 0;
+
+    platosArray.forEach(plato => {
+        const nombre = plato.Nombre;
+        const valorVenta = plato.Valor_Venta;
+        const costo = plato.Costo;
+
+        // Calcular cuántos de este plato vender
+        const cantidadPorPlato = Math.ceil((totalPlatosAVender / totalPlatos)); // Distribuir ventas por plato
+
+        // Guardar resultados
+        ventasPorPlato[nombre] = {
+            cantidad: cantidadPorPlato,
+            totalVentas: cantidadPorPlato * valorVenta,
+            totalCostos: cantidadPorPlato * costo,
+        };
+
+        // Sumar ventas totales y costos totales
+        totalVentas += ventasPorPlato[nombre].totalVentas;
+        totalCostos += ventasPorPlato[nombre].totalCostos;
+    });
+
+    // Ajustar los resultados para que la diferencia cumpla la condición
+    const diferencia = totalVentas - totalCostos;
+
+    if (diferencia !== costosFijos) {
+        const ajuste = (costosFijos - diferencia) / totalPlatos; // Ajustar cada plato
+
+        for (const nombre in ventasPorPlato) {
+            ventasPorPlato[nombre].cantidad += Math.ceil(ajuste);
+            ventasPorPlato[nombre].totalVentas = ventasPorPlato[nombre].cantidad * platosArray.find(p => p.Nombre === nombre).Valor_Venta;
+            ventasPorPlato[nombre].totalCostos = ventasPorPlato[nombre].cantidad * platosArray.find(p => p.Nombre === nombre).Costo;
+        }
+    }
+
+    return ventasPorPlato;
+};

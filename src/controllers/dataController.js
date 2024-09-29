@@ -110,30 +110,31 @@ export const createInforms = async (req, res) => {
 
     // const omnesResult = await omnesFunction(mesFormat, Informes_Categoria)
     // const ADLResults = await ADL(mesFormat, Informes_Categoria)    
-    const IRPResults = await IRP(mesFormat, Informes_Categoria)
-    const IndexPopularidadResults = await IndexPopularidad(mesFormat, Informes_Categoria)
-    const CostoMargenAnalysisResults = await CostoMargenAnalysis(mesFormat, Informes_Categoria);
-    const BCGResults = await BCGPop(mesFormat, Informes_Categoria)
-    const MillerResults = await Miller(mesFormat, Informes_Categoria);
+    // const IRPResults = await IRP(mesFormat, Informes_Categoria)
+    // const IndexPopularidadResults = await IndexPopularidad(mesFormat, Informes_Categoria)
+    // const CostoMargenAnalysisResults = await CostoMargenAnalysis(mesFormat, Informes_Categoria);
+    // const BCGResults = await BCGPop(mesFormat, Informes_Categoria)
+    // const MillerResults = await Miller(mesFormat, Informes_Categoria);
     
-    const multiCriterioObject = {
-        BCGResults,
-        CostoMargenAnalysisResults,
-        MillerResults,
-        IRPResults,
-        IndexPopularidadResults
-    }
+    // const multiCriterioObject = {
+    //     BCGResults,
+    //     CostoMargenAnalysisResults,
+    //     MillerResults,
+    //     IRPResults,
+    //     IndexPopularidadResults
+    // }
+    // const multiCriterioResults = multiCriterioFunction(multiCriterioObject) //los puntajes detallados
+    // const multiCriterioFinal = multiCriterioResultsOnly(multiCriterioResults) //solo los puntajes
+    const EQResult = PuntoEquilibrio(mesFormat, Informes_Categoria, 25000) //Este aun no esta pulido, falta trabajar y consultar con Rodrigo
 
-    const multiCriterioResults = multiCriterioFunction(multiCriterioObject) //los puntajes detallados
+    
+    /**
+     * FAltan el APC, el Pavesic, el Uman, el Merricks&Jones, el LeBruto-Ashley&Quain
+     */
 
-
-    const multiCriterioFinal = multiCriterioResultsOnly(multiCriterioResults) //solo los puntajes
 
     try {
-        // console.log(platos);        
-        // console.log(multiCriterioResults);
-        // console.log(JSON.stringify(multiCriterioResults, null));
-        console.log(multiCriterioFinal);
+        console.log(EQResult);
         
         
     } catch (error) {
