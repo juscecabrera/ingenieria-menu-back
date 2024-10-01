@@ -1,18 +1,17 @@
 import Plato from "../../dao/models/Plate.js";
 import { Sequelize, Op } from "sequelize";
 
-export const omnesFunction = async (mesFormat, Informes_Categoria) => {     
-    console.log('OmnesFunction execute\n')
-    console.time('start')
-    //Mover todo la comprension para las formulas en la documentacion/readme
-    //de repente puedo mejorar haciendo query a menos datos y calculando todo en js.
-    //Por ejemplo, todas las funciones de sequelize las puedo reemplazar por funciones JS. Solo recibir los datos en objetos y arrays y hacer los calculos con JS. 
-    
-    //1er principio    
-    const columnas = await Plato.findAll({
+
+export const executeInform = async (mesFormat, Informes_Categoria) => {
+    console.time('createInform')
+
+    const data = await Plato.findAll({
         attributes: [
+            'Nombre',
             'Valor_Venta',  
-            'Cantidad_vendida'  
+            'Cantidad_vendida',
+            'Costo',
+            'Dias_en_carta'
         ],
         where: {
             Mes_plato: mesFormat,
@@ -21,12 +20,73 @@ export const omnesFunction = async (mesFormat, Informes_Categoria) => {
         raw: true  
     })
 
-    const Valor_Venta = columnas.map(item => Number(item.Valor_Venta));
-    const Cantidad_vendida = columnas.map(item => Number(item.Cantidad_vendida));
+    
+    const Nombres = data.map(item => item.Nombre);
+    const Valor_Venta = data.map(item => Number(item.Valor_Venta));
+    const Cantidad_vendida = data.map(item => Number(item.Cantidad_vendida));
+    const Costos = data.map(item => Number(item.Costo));
+    const Dias_en_carta = data.map(item => Number(item.Dias_en_carta));
+    const MargenTotal = [];
+    const VentasTotales = [];
+    const Rentabilidad = [];
 
-    const VA = Math.max(...Valor_Venta) //Maximo valor de venta
-    const VB = Math.min(...Valor_Venta) //Minimo valor de venta
-    const cantidadPlatos = Valor_Venta.length // Cantidad de platos
+    const cantidadPlatos = Nombres.length
+
+    // Iterar sobre los arrays originales y calcular los nuevos valores
+    for (let i = 0; i < Valor_Venta.length; i++) {
+        const rentabilidad = (Valor_Venta[i].toFixed(2)) - (Costos[i].toFixed(2)); 
+        const margenTotal = (Cantidad_vendida[i].toFixed(2)) * (rentabilidad.toFixed(2));
+        const ventasTotales = (Cantidad_vendida[i].toFixed(2)) * (Valor_Venta[i].toFixed(2)); 
+
+        Rentabilidad.push(Number(rentabilidad.toFixed(2)));
+        MargenTotal.push(Number(margenTotal.toFixed(2)));
+        VentasTotales.push(Number(ventasTotales.toFixed(2)));
+    }
+
+    const SumaMargenTotal = MargenTotal.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
+    const SumaVentasTotales = VentasTotales.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
+    const SumaCantidadVendida = Cantidad_vendida.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
+    const SumaDiasCarta = Dias_en_carta.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
+    const SumaCostos = Costos.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
+    const SumaRentabilidad = Rentabilidad.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
+    
+
+    const omnesResult = await omnesFunction(Valor_Venta, Cantidad_vendida) 
+    const BCGResults = await BCGPop(data) 
+    const ADLResults = await ADL(data, Cantidad_vendida, Rentabilidad) 
+    const IRPResults = await IRP(data, MargenTotal, VentasTotales, SumaMargenTotal, SumaVentasTotales) 
+    const IndexPopularidadResults = await IndexPopularidad(data, SumaCantidadVendida, SumaDiasCarta) 
+    const CostoMargenAnalysisResults = await CostoMargenAnalysis(data, cantidadPlatos, MargenTotal, SumaCostos, SumaMargenTotal); 
+    const MillerResults = await Miller(data, cantidadPlatos, SumaCostos, SumaCantidadVendida); 
+    const umanResults = await Uman(data, Rentabilidad, MargenTotal, SumaRentabilidad, SumaMargenTotal, cantidadPlatos) 
+    const merrickResults = await Merrick(data, Rentabilidad, SumaCantidadVendida, SumaRentabilidad, cantidadPlatos) 
+
+    const multiCriterioObject = {
+        BCGResults,
+        CostoMargenAnalysisResults,
+        MillerResults,
+        IRPResults,
+        IndexPopularidadResults,
+    }
+
+    //actualizar multiCriterioResults, al parecer ya no usa IndexPopularida ni IRP y los reemplaza por Uman y Merrick
+    const multiCriterioResults = multiCriterioFunction(multiCriterioObject) //los puntajes detallados
+    const multiCriterioFinal = multiCriterioResultsOnly(multiCriterioResults) //solo los puntajes
+
+
+    
+    console.timeEnd('createInform')
+    return multiCriterioFinal
+}
+
+
+export const omnesFunction = async (Valor_Venta, Cantidad_vendida) => {     
+    console.log('OmnesFunction execute\n')
+    //1er principio    
+
+    const VA = Math.max(...Valor_Venta) 
+    const VB = Math.min(...Valor_Venta) 
+    const cantidadPlatos = Valor_Venta.length 
     const sumaTotalVentas = Valor_Venta.reduce((total, valor, index) => {
         return total + valor * Cantidad_vendida[index];
     }, 0);
@@ -45,23 +105,14 @@ export const omnesFunction = async (mesFormat, Informes_Categoria) => {
     const Z1 = [VB, VB + AmplitudGama]
     const Z2 = [VB + AmplitudGama, VB + (2* AmplitudGama)]
     const Z3 = [VB + (2* AmplitudGama), VB + (3 * AmplitudGama)]
+    
+    const definePlatosZones = (elementos, rango) => {
+        return elementos.filter(elemento => elemento >= rango[0] && elemento < rango[1]).length;
+    };
 
-    const definePlatosZones = async (zone) => { 
-        await Plato.count({
-            where : {
-                Mes_plato: mesFormat,
-                Categoria: Informes_Categoria,
-                Valor_Venta: {
-                    [Sequelize.Op.between]: zone
-            
-                }
-            }
-        })
-    }
-
-    const platosZ1 = await definePlatosZones(Z1)
-    const platosZ2 = await definePlatosZones(Z2)
-    const platosZ3 = await definePlatosZones(Z3)
+    const platosZ1 = await definePlatosZones(Valor_Venta, Z1)
+    const platosZ2 = await definePlatosZones(Valor_Venta, Z2)
+    const platosZ3 = await definePlatosZones(Valor_Venta, Z3)
 
     const cumpleOmnes1 = platosZ1 + platosZ3 === platosZ2 ? true : false
 
@@ -87,16 +138,14 @@ export const omnesFunction = async (mesFormat, Informes_Categoria) => {
         4: cumpleOmnes4
     }
 
-    console.timeEnd('start')
     console.log('\nOmnesFunction finish')
     return omnesResult
 }
 
 
 //Corregir BCG, es por la cantidad promedio, no por 10%
-//Creo que el alg esta bien porque solo hace una consulta
-export async function BCGPop(mesFormat, Informes_Categoria) {
-
+export async function BCGPop(data) {
+    console.log('BCG execute\n')
     /*
     2do informe: BCG
 
@@ -112,29 +161,17 @@ export async function BCGPop(mesFormat, Informes_Categoria) {
             Calculo: (Valor_Venta - Costo)
     */
 
-    // Obtener los platos y sus cantidades vendidas
-    const platos = await Plato.findAll({
-        attributes: ['Nombre', 'Cantidad_vendida', 'Valor_Venta', 'Costo'],  // Añadir Valor_Venta y Costo
-        where: {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-        }
-    });
-    
-    // Calcular la cantidad total vendida y crear un objeto de cantidades por plato
     const rentabilidadPorPlato = {};
     let sumaCantidadVendida = 0;
     
-    platos.forEach(plato => {
-        const cantidadVendida = plato.get('Cantidad_vendida');
-        const nombrePlato = plato.get('Nombre');
-        const valorVenta = plato.get('Valor_Venta');
-        const costoUnitario = plato.get('Costo');
+    data.forEach(plato => {
+        const cantidadVendida = plato.Cantidad_vendida;
+        const nombrePlato = plato.Nombre;
+        const valorVenta = plato.Valor_Venta;
+        const costoUnitario = plato.Costo;
     
-        // Calcular la rentabilidad
         const rentabilidad = valorVenta - costoUnitario;
     
-        // Clasificar como Alta o Baja
         const rentabilidadFinal = rentabilidad > 15 ? "Alta" : "Baja";
     
         // Almacenar en el objeto
@@ -177,15 +214,15 @@ export async function BCGPop(mesFormat, Informes_Categoria) {
         };
     }
     
+    console.log('BCG finish\n')
     return resultadosFinales;
 }
 
-export async function ADL(mesFormat, Informes_Categoria) {
+export async function ADL(data, Cantidad_vendida, Rentabilidad) {
+    console.log('ADL execute\n')
     /*
     3er informe: ADL
-    
-    2 variables:
-    
+     
     1. Margen de Contribucion: level size = (mayor margen - menor margen) / 4
         Crecimiento: [..., mayor margen]
         Introduccion: [...]
@@ -200,51 +237,14 @@ export async function ADL(mesFormat, Informes_Categoria) {
         Marginal: [menor cantidad de ventas, menor cantidad de ventas + level size]
 
     Cada plato tiene dos atributos: margen de contribucion y cantidad vendida
-
-
-
     */
-    const maxRentabilidad = await Plato.findOne({
-        attributes: [
-            [Sequelize.fn('MAX', Sequelize.literal('Valor_Venta - Costo')), 'MaxRentabilidad'] 
-        ],
-        where: {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-        }
-    });
+    
 
-    const minRentabilidad = await Plato.findOne({
-        attributes: [
-            [Sequelize.fn('MIN', Sequelize.literal('Valor_Venta - Costo')), 'MinRentabilidad'] 
-        ],
-        where: {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-        }
-    });
+    const CVA = Math.max(...Cantidad_vendida)
+    const CVB = Math.min(...Cantidad_vendida)
+    const maxRent = Math.max(...Rentabilidad)
+    const minRent = Math.min(...Rentabilidad)
 
-    const CantidadVentasAlto = await Plato.findOne({
-        attributes: [[Sequelize.fn('MAX', Sequelize.col('Cantidad_vendida')), 'maxCantidadVendida']],
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria
-        }
-    })
-
-    const CantidadVentasBajo = await Plato.findOne({
-        attributes: [[Sequelize.fn('MIN', Sequelize.col('Cantidad_vendida')), 'minCantidadVendida']],
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria
-        }
-    })
-
-
-    const CVA = Number(CantidadVentasAlto.get('maxCantidadVendida'))
-    const CVB = Number(CantidadVentasBajo.get('minCantidadVendida'))
-    const maxRent = maxRentabilidad ? Number(maxRentabilidad.get('MaxRentabilidad')) : null;
-    const minRent = minRentabilidad ? Number(minRentabilidad.get('MinRentabilidad')) : null;
 
     const CantidadVentasSize = (CVA - CVB) / 5
 
@@ -264,45 +264,47 @@ export async function ADL(mesFormat, Informes_Categoria) {
     const Debil = [minRent + RentabilidadSize,  minRent +  (2 * RentabilidadSize)]
     const Marginal = [minRent, minRent + RentabilidadSize]
 
-    
-    const platos = await Plato.findAll({
-        attributes: ['Nombre', 'Cantidad_vendida', [Sequelize.literal('Valor_Venta - Costo'), 'Rentabilidad']],
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria
-        }
-    })
-
     const resultado = {};
-    platos.forEach(plato => {
-        const nombre = plato.get('Nombre');
-        const rentabilidad = plato.get('Rentabilidad');
-        const cantidadVendida = plato.get('Cantidad_vendida');
+    data.forEach((plato, index) => {
+        const nombre = plato.Nombre;
+        const rentabilidad = Rentabilidad[index];
+        const cantidadVendida = plato.Cantidad_vendida;
 
         // Determinar la categoría de Rentabilidad
         let rentabilidadCategoria;
-        if (rentabilidad < Crecimiento[1]) {
-            rentabilidadCategoria = 'Declinacion';
-        } else if (rentabilidad < Introduccion[1]) {
-            rentabilidadCategoria = 'Introduccion';
-        } else if (rentabilidad < Madurez[1]) {
-            rentabilidadCategoria = 'Crecimiento';
-        } else {
-            rentabilidadCategoria = 'Madurez';
+        switch (true) {
+            case (rentabilidad < Crecimiento[1]):
+                rentabilidadCategoria = 'Declinacion';
+                break;
+            case (rentabilidad < Introduccion[1]):
+                rentabilidadCategoria = 'Introduccion';
+                break;
+            case (rentabilidad < Madurez[1]):
+                rentabilidadCategoria = 'Crecimiento';
+                break;
+            default:
+                rentabilidadCategoria = 'Madurez';
+                break;
         }
 
         // Determinar la categoría de Cantidad Vendida
         let cantidadVendidaCategoria;
-        if (cantidadVendida >= Dominante[0] && cantidadVendida <= Dominante[1]) {
-            cantidadVendidaCategoria = 'Dominante';
-        } else if (cantidadVendida >= Fuerte[0] && cantidadVendida <= Fuerte[1]) {
-            cantidadVendidaCategoria = 'Fuerte';
-        } else if (cantidadVendida >= Favorable[0] && cantidadVendida <= Favorable[1]) {
-            cantidadVendidaCategoria = 'Favorable';
-        } else if (cantidadVendida >= Debil[0] && cantidadVendida <= Debil[1]) {
-            cantidadVendidaCategoria = 'Debil';
-        } else {
-            cantidadVendidaCategoria = 'Marginal';
+        switch (true) {
+            case (cantidadVendida >= Dominante[0] && cantidadVendida <= Dominante[1]):
+                cantidadVendidaCategoria = 'Dominante';
+                break;
+            case (cantidadVendida >= Fuerte[0] && cantidadVendida <= Fuerte[1]):
+                cantidadVendidaCategoria = 'Fuerte';
+                break;
+            case (cantidadVendida >= Favorable[0] && cantidadVendida <= Favorable[1]):
+                cantidadVendidaCategoria = 'Favorable';
+                break;
+            case (cantidadVendida >= Debil[0] && cantidadVendida <= Debil[1]):
+                cantidadVendidaCategoria = 'Debil';
+                break;
+            default:
+                cantidadVendidaCategoria = 'Marginal';
+                break;
         }
 
         resultado[nombre] = {
@@ -311,55 +313,27 @@ export async function ADL(mesFormat, Informes_Categoria) {
         };
     }); 
 
+    console.log('ADL finish\n')
     return resultado
 
 }
 
-export const IRP = async (mesFormat, Informes_Categoria) => {
-    /*
-    4to informe: IRP
+export const IRP = async (data, MargenTotal, VentasTotales, sumaMargenTotal, sumaVentasTotales) => {
+    console.log('IRP execute\n')    
+    /* 4to informe: IRP
 
     % de margen del plato sobre el total 
     % de venta del plato sobre el total
     
     IRP = % de margen / % de venta
-
     Mayor a 1 o menor a 1.
-
-    1. % de margen = (Cantidad_vendida * Margen) / suma de margenes totales
-    2. % de venta = (Cantidad vendida * Valor_Venta) / suma de ventas totales
-
-    
     */ 
 
-    const platos = await Plato.findAll({
-        attributes: [
-            'Nombre',
-            [Sequelize.literal('(Cantidad_vendida * (Valor_Venta - Costo))'), 'margenTotal'],
-            [Sequelize.literal('(Cantidad_vendida * Valor_Venta)'), 'ventasTotales']
-        ],
-        where: {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-        }
-    });
-
-    // Variables para las sumas totales
-    let sumaMargenTotal = 0;
-    let sumaVentasTotales = 0;
-
-    // Calcular las sumas totales
-    platos.forEach(plato => {
-        sumaMargenTotal += parseFloat(plato.get('margenTotal'));   // Suma del margen total
-        sumaVentasTotales += parseFloat(plato.get('ventasTotales')); // Suma de ventas totales
-    });
-
-    // Crear un objeto con el nombre del plato como clave y un array con los porcentajes como valor
     const resultado = {};
-    platos.forEach(plato => {
-        const nombre = plato.get('Nombre');
-        const margenTotal = plato.get('margenTotal');
-        const ventasTotales = plato.get('ventasTotales');
+    data.forEach((plato, index) => {
+        const nombre = plato.Nombre;
+        const margenTotal = MargenTotal[index];
+        const ventasTotales = VentasTotales[index];
 
         // Calcular el porcentaje de margen y ventas totales
         const porcentajeMargen = Number(((margenTotal / sumaMargenTotal) * 100).toFixed(2));
@@ -369,38 +343,18 @@ export const IRP = async (mesFormat, Informes_Categoria) => {
         const IRPFinal = Number((porcentajeMargen / porcentajeVentas).toFixed(2))
         resultado[nombre] = IRPFinal;
     });
-
+    console.log('IRP finish\n')
     return resultado;
 }
 
-export const IndexPopularidad = async (mesFormat, Informes_Categoria) => {
-    const platos = await Plato.findAll({
-        attributes: [
-            'Nombre',
-            'Cantidad_vendida',
-            'Dias_en_carta'
-        ],
-        where: {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-        }
-    });
+export const IndexPopularidad = async (data, sumaCantidadVendidaTotal, sumaDiasEnCartaTotal) => {
+    console.log('IndexPopularidad execute\n')
 
-    // Calcular la suma total de cantidades vendidas y días en carta
-    let sumaCantidadVendidaTotal = 0;
-    let sumaDiasEnCartaTotal = 0;
-    
-    platos.forEach(plato => {
-        sumaCantidadVendidaTotal += parseFloat(plato.get('Cantidad_vendida')); // Sumar cantidades vendidas
-        sumaDiasEnCartaTotal += parseFloat(plato.get('Dias_en_carta')); // Sumar días en carta
-    });
-
-    // Crear un objeto con el nombre del plato como clave y un array con ambos porcentajes como valor
     const resultado = {};
-    platos.forEach(plato => {
-        const nombre = plato.get('Nombre');
-        const cantidadVendida = parseFloat(plato.get('Cantidad_vendida'));
-        const diasEnCarta = parseFloat(plato.get('Dias_en_carta'));
+    data.forEach(plato => {
+        const nombre = plato.Nombre;
+        const cantidadVendida = parseFloat(plato.Cantidad_vendida);
+        const diasEnCarta = parseFloat(plato.Dias_en_carta);
 
         // Calcular los porcentajes
         const porcentajeCantidadVendida = Number(((cantidadVendida / sumaCantidadVendidaTotal) * 100).toFixed(2));
@@ -411,42 +365,20 @@ export const IndexPopularidad = async (mesFormat, Informes_Categoria) => {
         resultado[nombre] = IPFinal;
     });
 
+    console.log('IndexPopularidad finish\n')
     return resultado;
 }
 
-export const CostoMargenAnalysis = async (mesFormat, Informes_Categoria) => {
-    // Obtener los platos y calcular los costos y márgenes
-    const platos = await Plato.findAll({
-        attributes: [
-            'Nombre',
-            [Sequelize.literal('Costo'), 'costo'],
-            [Sequelize.literal('(Cantidad_vendida * (Valor_Venta - Costo))'), 'margenTotal']
-        ],
-        where: {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria
-        }
-    });
-
-    // Calcular el costo promedio y el margen promedio
-    let sumaCostos = 0;
-    let sumaMargenes = 0;
-
-    platos.forEach(plato => {
-        sumaCostos += parseFloat(plato.get('costo'));
-        sumaMargenes += parseFloat(plato.get('margenTotal'));
-    });
-
-    const cantidadPlatos = platos.length;
+export const CostoMargenAnalysis = async (data, cantidadPlatos, MargenTotal, sumaCostos, sumaMargenes) => {
+    console.log('CostoMargen execute\n')
     const costoPromedio = sumaCostos / cantidadPlatos;
     const margenPromedio = sumaMargenes / cantidadPlatos;
 
-    // Crear un objeto con el nombre del plato como clave y los atributos como valor
     const resultado = {};
-    platos.forEach(plato => {
-        const nombre = plato.get('Nombre');
-        const costo = parseFloat(plato.get('costo'));
-        const margen = parseFloat(plato.get('margenTotal'));
+    data.forEach((plato, index) => {
+        const nombre = plato.Nombre;
+        const costo = parseFloat(plato.Costo);
+        const margen = parseFloat(MargenTotal[index]);
 
         // Asignar Costo Ponderado
         const costoPonderado = costo < costoPromedio ? 'Bajo' : 'Alto';
@@ -470,42 +402,22 @@ export const CostoMargenAnalysis = async (mesFormat, Informes_Categoria) => {
         resultado[nombre] = [costoPonderado, mcp, cma];
     });
 
+    console.log('CostoMargen finish\n')
+
     return resultado;
 };
 
-export const Miller = async (mesFormat, Informes_Categoria) => {
-    // Obtener todos los platos y sus atributos necesarios
-    const platos = await Plato.findAll({
-        attributes: ['Nombre', 'Costo', 'Cantidad_vendida'],
-        where: {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-        }
-    });
-
-    // Inicializar variables para calcular promedios
-    let sumaCostos = 0;
-    let sumaCantidadVendida = 0;
-    const cantidadPlatos = platos.length;
-
-    // Sumar todos los costos y cantidades vendidas
-    platos.forEach(plato => {
-        sumaCostos += parseFloat(plato.get('Costo'));
-        sumaCantidadVendida += parseFloat(plato.get('Cantidad_vendida'));
-    });
-
-    // Calcular promedios
+export const Miller = async (data, cantidadPlatos, sumaCostos, sumaCantidadVendida) => {
+    console.log('Miller execute\n')
     const costoPromedio = sumaCostos / cantidadPlatos;
     const cantidadVendidaPromedio = sumaCantidadVendida / cantidadPlatos;
 
-    // Crear un objeto para almacenar los resultados
+    
     const resultado = {};
-
-    // Evaluar cada plato y asignar atributos
-    platos.forEach(plato => {
-        const nombre = plato.get('Nombre');
-        const costo = parseFloat(plato.get('Costo'));
-        const cantidadVendida = parseFloat(plato.get('Cantidad_vendida'));
+    data.forEach(plato => {
+        const nombre = plato.Nombre;
+        const costo = parseFloat(plato.Costo);
+        const cantidadVendida = parseFloat(plato.Cantidad_vendida);
 
         // Determinar atributos basados en promedios
         const costoAlimentos = costo < costoPromedio ? "Bajo" : "Alto";
@@ -523,14 +435,20 @@ export const Miller = async (mesFormat, Informes_Categoria) => {
             mm = "Perdedor";
         }
 
-        // Almacenar resultados en el objeto
         resultado[nombre] = [costoAlimentos, cantidadVendidaAtributo, mm];
     });
+
+    console.log('Miller finish\n')
 
     return resultado;
 };
 
 export const multiCriterioFunction = (multiCriterio) => {
+    console.log('Multi execute\n')
+    
+    //Agregar Uman y Merrick
+    //Eliminar IRP e IndexPopularidad
+    
     const resultadosArray = [];
 
     const nombresPlatos = Object.keys(multiCriterio.BCGResults);
@@ -565,10 +483,14 @@ export const multiCriterioFunction = (multiCriterio) => {
         resultadosArray.push(resultado);
     });
 
+    console.log('Multi finish\n')
+
     return resultadosArray;
 };
 
 export const multiCriterioResultsOnly = (resultados) => {
+    console.log('MultiResults execute\n')
+    
     const puntajesObjeto = {};
 
     resultados.forEach(resultado => {
@@ -578,9 +500,12 @@ export const multiCriterioResultsOnly = (resultados) => {
         puntajesObjeto[nombre] = puntaje;
     });
 
+    console.log('MultiResults finish\n')
+
     return puntajesObjeto;
 };
 
+//Por arreglar, usar Excel
 export const PuntoEquilibrio = async (mesFormat, Informes_Categoria, costosFijos) => {
     // Consulta para obtener los platos
     const platos = await Plato.findAll({
@@ -665,7 +590,8 @@ export const PuntoEquilibrio = async (mesFormat, Informes_Categoria, costosFijos
     return ventasPorPlato;
 };
 
-export async function Uman(mesFormat, Informes_Categoria) {
+export async function Uman(data, Rentabilidad, MargenTotal, SumaRentabilidad, SumaMargenTotal, cantidadPlatos) {
+    console.log('Uman execute\n')
     
     // Uman:
     //     - Margen de contribucion total (MT): margen unitario * cantidad vendida : si el Margen de contribucion total es mayor al promedio es Alto, sino Bajo
@@ -678,36 +604,14 @@ export async function Uman(mesFormat, Informes_Categoria) {
     //         - Perdedor: MT Bajo, M Bajo
     //         - Dificil de vender: MT Bajo, M Alto
 
-    // Obtener datos de los platos
-    const platos = await Plato.findAll({
-        attributes: [
-            'Nombre', 
-            'Cantidad_vendida', 
-            [Sequelize.literal('Valor_Venta - Costo'), 'Margen_unitario'],  // Margen unitario
-            [Sequelize.literal('(Valor_Venta - Costo) * Cantidad_vendida'), 'Margen_total']  // Margen total
-        ],
-        where: {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria
-        },
-        raw: true  // Para devolver datos como objetos planos
-    });
+    const promedioMargen = Number((SumaRentabilidad / cantidadPlatos).toFixed(2));
+    const promedioMargenTotal = Number((SumaMargenTotal / cantidadPlatos).toFixed(2));
 
-    // Calcular el promedio de margen unitario y total
-    const totalPlatos = platos.length;
-    const { margenUnitarioTotal, margenTotal } = platos.reduce((acc, plato) => {
-        acc.margenUnitarioTotal += Number(plato.Margen_unitario);
-        acc.margenTotal += Number(plato.Margen_total);
-        return acc;
-    }, { margenUnitarioTotal: 0, margenTotal: 0 });
-
-    const promedioMargen = Number((margenUnitarioTotal / totalPlatos).toFixed(2));
-    const promedioMargenTotal = Number((margenTotal / totalPlatos).toFixed(2));
-
-    // Clasificar cada plato según las reglas de Uman
-    return platos.map(plato => {
-        const MU = plato.Margen_unitario < promedioMargen ? 'Bajo' : 'Alto';
-        const MT = plato.Margen_total < promedioMargenTotal ? 'Bajo' : 'Alto';
+    
+    console.log('Uman finish\n')
+    return data.map((plato, index) => {
+        const MU = Rentabilidad[index] < promedioMargen ? 'Bajo' : 'Alto';
+        const MT = MargenTotal[index] < promedioMargenTotal ? 'Bajo' : 'Alto';
 
         // Clasificación Uman basada en las combinaciones de MU y MT
         let umanClasificacion;
@@ -720,6 +624,7 @@ export async function Uman(mesFormat, Informes_Categoria) {
         } else {
             umanClasificacion = 'Dificil de vender';
         }
+        
 
         return {
             Nombre: plato.Nombre,
@@ -730,9 +635,9 @@ export async function Uman(mesFormat, Informes_Categoria) {
     });
 }
 
-export async function Merrick(mesFormat, Informes_Categoria) {
+export async function Merrick(data, Rentabilidad, SumaCantidadVendida, SumaRentabilidad, cantidadPlatos) {
+    console.log('Merrick execute\n')
     /*
-    
     Merrick&Jones:
         - Cantidad vendida (CV): mayor al promedio es Alto, sino es Bajo
         - Margen de contribucion unitario (M): mayor al promedio es Alto, sino Bajo
@@ -742,39 +647,16 @@ export async function Merrick(mesFormat, Informes_Categoria) {
             - Grupo B: CV Alto, M Bajo
             - Grupo C: CV Bajo, M Alto
             - Grupo D: CV Bajo, M Bajo
-    
     */ 
-
-    // Obtener datos de los platos
-    const platos = await Plato.findAll({
-        attributes: [
-            'Nombre', 
-            'Cantidad_vendida', 
-            [Sequelize.literal('Valor_Venta - Costo'), 'Margen_unitario'],  // Margen unitario
-            [Sequelize.literal('(Valor_Venta - Costo) * Cantidad_vendida'), 'Margen_total']  // Margen total
-        ],
-        where: {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria
-        },
-        raw: true  // Para devolver datos como objetos planos
-    });
-
-    // Calcular promedios de Cantidad Vendida (CV) y Margen de Contribución Unitario (M)
-    const totalPlatos = platos.length;
-    const { totalCantidadVendida, totalMargenUnitario } = platos.reduce((acc, plato) => {
-        acc.totalCantidadVendida += Number(plato.Cantidad_vendida);
-        acc.totalMargenUnitario += Number(plato.Margen_unitario);
-        return acc;
-    }, { totalCantidadVendida: 0, totalMargenUnitario: 0 });
-
-    const promedioCantidadVendida = Number((totalCantidadVendida / totalPlatos).toFixed(2));
-    const promedioMargenUnitario = Number((totalMargenUnitario / totalPlatos).toFixed(2));
+    
+    const promedioCantidadVendida = Number((SumaCantidadVendida / cantidadPlatos).toFixed(2));
+    const promedioMargenUnitario = Number((SumaRentabilidad / cantidadPlatos).toFixed(2));
 
     // Clasificar cada plato según CV y M
-    return platos.map(plato => {
+    console.log('Merrick finish\n')
+    return data.map((plato, index) => {
         const CV = plato.Cantidad_vendida > promedioCantidadVendida ? 'Alto' : 'Bajo';
-        const M = plato.Margen_unitario > promedioMargenUnitario ? 'Alto' : 'Bajo';
+        const M = Rentabilidad[index] > promedioMargenUnitario ? 'Alto' : 'Bajo';
 
         // Clasificación en Grupo basado en las combinaciones de CV y M
         let grupoClasificacion;
@@ -787,7 +669,7 @@ export async function Merrick(mesFormat, Informes_Categoria) {
         } else {
             grupoClasificacion = 'Grupo D';
         }
-
+        
         return {
             Nombre: plato.Nombre,
             CV,

@@ -2,7 +2,7 @@ import { and, Sequelize } from "sequelize";
 import config from "../config.js";
 import Plato from "../dao/models/Plate.js";
 import convertToMonthYear from "../utils/convertToMonthYear.js";
-import { omnesFunction, BCGPop, ADL, IRP, IndexPopularidad, CostoMargenAnalysis, Miller, multiCriterioFunction, multiCriterioResultsOnly, PuntoEquilibrio, Uman, Merrick } from './informesFunctions/informesFunctions.js'
+import { omnesFunction, BCGPop, ADL, IRP, IndexPopularidad, CostoMargenAnalysis, Miller, multiCriterioFunction, multiCriterioResultsOnly, PuntoEquilibrio, Uman, Merrick, executeInform } from './informesFunctions/informesFunctions.js'
 
 // await sequelize.authenticate();
 
@@ -146,48 +146,13 @@ export const createInforms = async (req, res) => {
     
     */
 
-    const omnesResult = await omnesFunction(mesFormat, Informes_Categoria)
-    // const ADLResults = await ADL(mesFormat, Informes_Categoria)    
-    // const IRPResults = await IRP(mesFormat, Informes_Categoria)
-    // const IndexPopularidadResults = await IndexPopularidad(mesFormat, Informes_Categoria)
-    // const CostoMargenAnalysisResults = await CostoMargenAnalysis(mesFormat, Informes_Categoria);
-    // const BCGResults = await BCGPop(mesFormat, Informes_Categoria)
-    // const MillerResults = await Miller(mesFormat, Informes_Categoria);
-    // const umanResults = await Uman(mesFormat, Informes_Categoria)
-    // const merrickResults = await Merrick(mesFormat, Informes_Categoria)
-
-    // const multiCriterioObject = {
-    //     BCGResults,
-    //     CostoMargenAnalysisResults,
-    //     MillerResults,
-    //     IRPResults,
-    //     IndexPopularidadResults
-    // }
-    // const multiCriterioResults = multiCriterioFunction(multiCriterioObject) //los puntajes detallados
-    // const multiCriterioFinal = multiCriterioResultsOnly(multiCriterioResults) //solo los puntajes
-
     // const EQResult = await PuntoEquilibrio(mesFormat, Informes_Categoria, 25000) //Este aun no esta pulido, falta trabajar y consultar con Rodrigo, faltan los costos fijos de la otra tabla
 
-
-    // const resultadosFinalesInformes = {
-    //     omnesResult, 
-    //     ADLResults, 
-    //     IRPResults,
-    //     IndexPopularidadResults,
-    //     CostoMargenAnalysisResults,
-    //     BCGResults,
-    //     MillerResults,
-    //     umanResults, 
-    //     merrickResults,
-    //     multiCriterioResults
-    // }
     
-
-    
-
+    const resultadosFinales = await executeInform(mesFormat, Informes_Categoria)
 
     try {
-        console.log(omnesResult);
+        console.log(resultadosFinales);
     } catch (error) {
         res.status(500).json({ error: 'Error creating inform.' });
     }

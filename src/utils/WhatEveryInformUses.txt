@@ -1,0 +1,25 @@
+1. Omnes:
+    Valor_Venta, Cantidad_vendida
+2. BCG:
+    Nombre, Cantidad_vendida, Valor_Venta, Costo
+3. ADL:
+    Nombre, Rentabilidad (Valor_Venta - Costo), Cantidad_vendida
+4. IRP:
+    Nombre, margenTotal (Cantidad_vendida * (Valor_Venta - Costo)), ventasTotales (Cantidad_vendida * Valor_Venta)
+5. IndexPopularidad:
+    Nombre, Cantidad_vendida, Dias_en_carta
+6. CostoMargenAnalysis:
+    Nombre, Costo, margenTotal
+7. Miller:
+    Nombre, Costo, Cantidad_vendida
+8. multiCriterio: 
+
+9. PuntoEquilibrio:
+    Nombre, Valor_Venta, Costo, margenTotal, ventasTotales
+10. Uman:
+    Nombre, Cantidad_vendida, Rentabilidad, margenTotal
+11. Merrick:
+    Nombre, Cantidad_vendida, Rentabilidad, margenTotal
+
+
+Nombre, Valor_Venta, Cantidad_vendida,Costo, Dias_en_carta
