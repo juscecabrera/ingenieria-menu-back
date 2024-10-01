@@ -74,10 +74,22 @@ export const executeInform = async (mesFormat, Informes_Categoria) => {
     const multiCriterioFinal = multiCriterioResultsOnly(multiCriterioResults) //solo los puntajes
 
 
+    const result = {
+        omnesResult, 
+        BCGResults,
+        ADLResults, 
+        IRPResults,
+        IndexPopularidadResults,
+        CostoMargenAnalysisResults,
+        MillerResults,
+        umanResults, 
+        merrickResults, 
+        // multiCriterioResults, 
+        multiCriterioFinal
+    } 
     
     console.timeEnd('createInform')
-    return {omnesResult, ADLResults, umanResults, merrickResults, multiCriterioResults, multiCriterioFinal}
-    // return omnesResult
+    return result
 }
 
 
@@ -385,11 +397,12 @@ export const CostoMargenAnalysis = async (data, cantidadPlatos, MargenTotal, sum
             cma = 'Problema';
         }
 
-        // Guardar los atributos en el objeto resultado
-        resultado[nombre] = [costoPonderado, mcp, cma];
+        resultado[nombre] = {
+            costoPonderado: costoPonderado, 
+            margenContribucionPonderado: mcp, 
+            costoMargen: cma
+        };
     });
-
-
     return resultado;
 };
 
@@ -408,7 +421,7 @@ export const Miller = async (data, cantidadPlatos, sumaCostos, sumaCantidadVendi
         const costoAlimentos = costo < costoPromedio ? "Bajo" : "Alto";
         const cantidadVendidaAtributo = cantidadVendida < cantidadVendidaPromedio ? "Bajo" : "Alto";
 
-        // Determinar el atributo MM
+        // Determinar el atributo MM (Miller Matrix)
         let mm;
         if (costoAlimentos === "Bajo" && cantidadVendidaAtributo === "Alto") {
             mm = "Ganador";
@@ -420,7 +433,11 @@ export const Miller = async (data, cantidadPlatos, sumaCostos, sumaCantidadVendi
             mm = "Perdedor";
         }
 
-        resultado[nombre] = [costoAlimentos, cantidadVendidaAtributo, mm];
+        resultado[nombre] = {
+            costoAlimentos: costoAlimentos, 
+            cantidadVendidaAtributo: cantidadVendidaAtributo, 
+            millerMatrix: mm
+        };
     });
 
 
