@@ -168,6 +168,7 @@ export const omnesFunction = async (mesFormat, Informes_Categoria) => {
     return omnesResult
 }
 
+//Corregir BCG, es por la cantidad promedio, no por 10%
 export async function BCGPop(mesFormat, Informes_Categoria) {
 
     /*
@@ -223,7 +224,9 @@ export async function BCGPop(mesFormat, Informes_Categoria) {
     const resultadosFinales = {};
     for (const [nombrePlato, { cantidadVendida }] of Object.entries(rentabilidadPorPlato)) {
         const porcentaje = (cantidadVendida / sumaCantidadVendida) * 100;
-        const popularidadPorcentual = porcentaje.toFixed(2);  // Redondear a 2 decimales
+        const popularidadPorcentual = porcentaje.toFixed(2); 
+
+        //Aqui agregar la logica para que sea menor o mayor al promedio de popularidad, no al 10%
         const popularidadFinal = popularidadPorcentual <= 10 ? "Baja" : "Alta";
 
         // Determinar la categoría BCG
@@ -604,66 +607,6 @@ export const Miller = async (mesFormat, Informes_Categoria) => {
 export const multiCriterioFunction = (multiCriterio) => {
     const resultadosArray = [];
 
-    const calcularPuntaje = (bcgCategory, costoMargen, miller, irp, indexPopularidad) => {
-        let puntaje = 0;
-
-        // Calcular puntaje según el criterio BCG
-        switch (bcgCategory) {
-            case 'Estrella':
-                puntaje += 4;
-                break;
-            case 'Impopular':
-                puntaje += 3;
-                break;
-            case 'Popular':
-                puntaje += 2;
-                break;
-            case 'Perdedor':
-                puntaje += 1;
-                break;
-        }
-
-        // Calcular puntaje según CostoMargen
-        switch (costoMargen) {
-            case 'Selecto':
-                puntaje += 4;
-                break;
-            case 'Estandar':
-                puntaje += 3;
-                break;
-            case 'Durmiente':
-                puntaje += 2;
-                break;
-            case 'Problema':
-                puntaje += 1;
-                break;
-        }
-
-        // Calcular puntaje según Miller
-        switch (miller) {
-            case 'Ganador':
-                puntaje += 4;
-                break;
-            case 'Marginal Alto':
-                puntaje += 3;
-                break;
-            case 'Marginal Bajo':
-                puntaje += 2;
-                break;
-            case 'Perdedor':
-                puntaje += 1;
-                break;
-        }
-
-        // Calcular puntaje según IRP
-        puntaje += (irp > 1) ? 4 : 1;
-
-        // Calcular puntaje según IndexPopularidad
-        puntaje += (indexPopularidad > 1) ? 4 : 1;
-
-        return puntaje;
-    };
-
     const nombresPlatos = Object.keys(multiCriterio.BCGResults);
     
     nombresPlatos.forEach(nombrePlato => {
@@ -795,3 +738,135 @@ export const PuntoEquilibrio = async (mesFormat, Informes_Categoria, costosFijos
 
     return ventasPorPlato;
 };
+
+export async function Uman(mesFormat, Informes_Categoria) {
+    
+    // Uman:
+    //     - Margen de contribucion total (MT): margen unitario * cantidad vendida : si el Margen de contribucion total es mayor al promedio es Alto, sino Bajo
+    //     - Margen de contribucion unitario (M): si el margen unitario es mayor al promedio es Alto, sino Bajo
+
+    //     Clasificacion:
+
+    //         - Potencial: MT Alto, M Bajo
+    //         - Bandera: MT Alto, M Alto
+    //         - Perdedor: MT Bajo, M Bajo
+    //         - Dificil de vender: MT Bajo, M Alto
+
+    // Obtener datos de los platos
+    const platos = await Plato.findAll({
+        attributes: [
+            'Nombre', 
+            'Cantidad_vendida', 
+            [Sequelize.literal('Valor_Venta - Costo'), 'Margen_unitario'],  // Margen unitario
+            [Sequelize.literal('(Valor_Venta - Costo) * Cantidad_vendida'), 'Margen_total']  // Margen total
+        ],
+        where: {
+            Mes_plato: mesFormat,
+            Categoria: Informes_Categoria
+        },
+        raw: true  // Para devolver datos como objetos planos
+    });
+
+    // Calcular el promedio de margen unitario y total
+    const totalPlatos = platos.length;
+    const { margenUnitarioTotal, margenTotal } = platos.reduce((acc, plato) => {
+        acc.margenUnitarioTotal += Number(plato.Margen_unitario);
+        acc.margenTotal += Number(plato.Margen_total);
+        return acc;
+    }, { margenUnitarioTotal: 0, margenTotal: 0 });
+
+    const promedioMargen = Number((margenUnitarioTotal / totalPlatos).toFixed(2));
+    const promedioMargenTotal = Number((margenTotal / totalPlatos).toFixed(2));
+
+    // Clasificar cada plato según las reglas de Uman
+    return platos.map(plato => {
+        const MU = plato.Margen_unitario < promedioMargen ? 'Bajo' : 'Alto';
+        const MT = plato.Margen_total < promedioMargenTotal ? 'Bajo' : 'Alto';
+
+        // Clasificación Uman basada en las combinaciones de MU y MT
+        let umanClasificacion;
+        if (MT === 'Alto' && MU === 'Bajo') {
+            umanClasificacion = 'Potencial';
+        } else if (MT === 'Alto' && MU === 'Alto') {
+            umanClasificacion = 'Bandera';
+        } else if (MT === 'Bajo' && MU === 'Bajo') {
+            umanClasificacion = 'Perdedor';
+        } else {
+            umanClasificacion = 'Dificil de vender';
+        }
+
+        return {
+            Nombre: plato.Nombre,
+            MU,
+            MT,
+            Uman: umanClasificacion
+        };
+    });
+}
+
+export async function Merrick(mesFormat, Informes_Categoria) {
+    /*
+    
+    Merrick&Jones:
+        - Cantidad vendida (CV): mayor al promedio es Alto, sino es Bajo
+        - Margen de contribucion unitario (M): mayor al promedio es Alto, sino Bajo
+        
+        Clasificacion:
+            - Grupo A: CV Alto, M Alto
+            - Grupo B: CV Alto, M Bajo
+            - Grupo C: CV Bajo, M Alto
+            - Grupo D: CV Bajo, M Bajo
+    
+    */ 
+
+    // Obtener datos de los platos
+    const platos = await Plato.findAll({
+        attributes: [
+            'Nombre', 
+            'Cantidad_vendida', 
+            [Sequelize.literal('Valor_Venta - Costo'), 'Margen_unitario'],  // Margen unitario
+            [Sequelize.literal('(Valor_Venta - Costo) * Cantidad_vendida'), 'Margen_total']  // Margen total
+        ],
+        where: {
+            Mes_plato: mesFormat,
+            Categoria: Informes_Categoria
+        },
+        raw: true  // Para devolver datos como objetos planos
+    });
+
+    // Calcular promedios de Cantidad Vendida (CV) y Margen de Contribución Unitario (M)
+    const totalPlatos = platos.length;
+    const { totalCantidadVendida, totalMargenUnitario } = platos.reduce((acc, plato) => {
+        acc.totalCantidadVendida += Number(plato.Cantidad_vendida);
+        acc.totalMargenUnitario += Number(plato.Margen_unitario);
+        return acc;
+    }, { totalCantidadVendida: 0, totalMargenUnitario: 0 });
+
+    const promedioCantidadVendida = Number((totalCantidadVendida / totalPlatos).toFixed(2));
+    const promedioMargenUnitario = Number((totalMargenUnitario / totalPlatos).toFixed(2));
+
+    // Clasificar cada plato según CV y M
+    return platos.map(plato => {
+        const CV = plato.Cantidad_vendida > promedioCantidadVendida ? 'Alto' : 'Bajo';
+        const M = plato.Margen_unitario > promedioMargenUnitario ? 'Alto' : 'Bajo';
+
+        // Clasificación en Grupo basado en las combinaciones de CV y M
+        let grupoClasificacion;
+        if (CV === 'Alto' && M === 'Alto') {
+            grupoClasificacion = 'Grupo A';
+        } else if (CV === 'Alto' && M === 'Bajo') {
+            grupoClasificacion = 'Grupo B';
+        } else if (CV === 'Bajo' && M === 'Alto') {
+            grupoClasificacion = 'Grupo C';
+        } else {
+            grupoClasificacion = 'Grupo D';
+        }
+
+        return {
+            Nombre: plato.Nombre,
+            CV,
+            M,
+            Grupo: grupoClasificacion
+        };
+    });
+}
