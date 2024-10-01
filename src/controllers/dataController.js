@@ -153,6 +153,7 @@ export const createInforms = async (req, res) => {
 
     try {
         console.log(resultadosFinales);
+        res.status(200).json(resultadosFinales);
     } catch (error) {
         res.status(500).json({ error: 'Error creating inform.' });
     }

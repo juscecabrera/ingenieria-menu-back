@@ -76,12 +76,12 @@ export const executeInform = async (mesFormat, Informes_Categoria) => {
 
     
     console.timeEnd('createInform')
-    return multiCriterioFinal
+    return {omnesResult, ADLResults, umanResults, merrickResults, multiCriterioResults, multiCriterioFinal}
+    // return omnesResult
 }
 
 
 export const omnesFunction = async (Valor_Venta, Cantidad_vendida) => {     
-    console.log('OmnesFunction execute\n')
     //1er principio    
 
     const VA = Math.max(...Valor_Venta) 
@@ -132,20 +132,18 @@ export const omnesFunction = async (Valor_Venta, Cantidad_vendida) => {
     const cumpleOmnes4 = `Promocion debe ser menor a ${Number(PMP.toFixed(2))}`
 
     const omnesResult = {
-        1: cumpleOmnes1,
-        2: cumpleOmnes2,
-        3: cumpleOmnes3,
-        4: cumpleOmnes4
+        '1 principio': cumpleOmnes1,
+        '2 principio': cumpleOmnes2,
+        '3 principio': cumpleOmnes3,
+        '4 principio': cumpleOmnes4
     }
 
-    console.log('\nOmnesFunction finish')
     return omnesResult
 }
 
 
 //Corregir BCG, es por la cantidad promedio, no por 10%
 export async function BCGPop(data) {
-    console.log('BCG execute\n')
     /*
     2do informe: BCG
 
@@ -214,12 +212,10 @@ export async function BCGPop(data) {
         };
     }
     
-    console.log('BCG finish\n')
     return resultadosFinales;
 }
 
 export async function ADL(data, Cantidad_vendida, Rentabilidad) {
-    console.log('ADL execute\n')
     /*
     3er informe: ADL
      
@@ -313,18 +309,13 @@ export async function ADL(data, Cantidad_vendida, Rentabilidad) {
         };
     }); 
 
-    console.log('ADL finish\n')
     return resultado
 
 }
 
 export const IRP = async (data, MargenTotal, VentasTotales, sumaMargenTotal, sumaVentasTotales) => {
-    console.log('IRP execute\n')    
     /* 4to informe: IRP
 
-    % de margen del plato sobre el total 
-    % de venta del plato sobre el total
-    
     IRP = % de margen / % de venta
     Mayor a 1 o menor a 1.
     */ 
@@ -343,12 +334,10 @@ export const IRP = async (data, MargenTotal, VentasTotales, sumaMargenTotal, sum
         const IRPFinal = Number((porcentajeMargen / porcentajeVentas).toFixed(2))
         resultado[nombre] = IRPFinal;
     });
-    console.log('IRP finish\n')
     return resultado;
 }
 
 export const IndexPopularidad = async (data, sumaCantidadVendidaTotal, sumaDiasEnCartaTotal) => {
-    console.log('IndexPopularidad execute\n')
 
     const resultado = {};
     data.forEach(plato => {
@@ -365,12 +354,10 @@ export const IndexPopularidad = async (data, sumaCantidadVendidaTotal, sumaDiasE
         resultado[nombre] = IPFinal;
     });
 
-    console.log('IndexPopularidad finish\n')
     return resultado;
 }
 
 export const CostoMargenAnalysis = async (data, cantidadPlatos, MargenTotal, sumaCostos, sumaMargenes) => {
-    console.log('CostoMargen execute\n')
     const costoPromedio = sumaCostos / cantidadPlatos;
     const margenPromedio = sumaMargenes / cantidadPlatos;
 
@@ -402,13 +389,11 @@ export const CostoMargenAnalysis = async (data, cantidadPlatos, MargenTotal, sum
         resultado[nombre] = [costoPonderado, mcp, cma];
     });
 
-    console.log('CostoMargen finish\n')
 
     return resultado;
 };
 
 export const Miller = async (data, cantidadPlatos, sumaCostos, sumaCantidadVendida) => {
-    console.log('Miller execute\n')
     const costoPromedio = sumaCostos / cantidadPlatos;
     const cantidadVendidaPromedio = sumaCantidadVendida / cantidadPlatos;
 
@@ -438,13 +423,11 @@ export const Miller = async (data, cantidadPlatos, sumaCostos, sumaCantidadVendi
         resultado[nombre] = [costoAlimentos, cantidadVendidaAtributo, mm];
     });
 
-    console.log('Miller finish\n')
 
     return resultado;
 };
 
 export const multiCriterioFunction = (multiCriterio) => {
-    console.log('Multi execute\n')
     
     //Agregar Uman y Merrick
     //Eliminar IRP e IndexPopularidad
@@ -483,13 +466,11 @@ export const multiCriterioFunction = (multiCriterio) => {
         resultadosArray.push(resultado);
     });
 
-    console.log('Multi finish\n')
 
     return resultadosArray;
 };
 
 export const multiCriterioResultsOnly = (resultados) => {
-    console.log('MultiResults execute\n')
     
     const puntajesObjeto = {};
 
@@ -500,7 +481,6 @@ export const multiCriterioResultsOnly = (resultados) => {
         puntajesObjeto[nombre] = puntaje;
     });
 
-    console.log('MultiResults finish\n')
 
     return puntajesObjeto;
 };
@@ -591,7 +571,6 @@ export const PuntoEquilibrio = async (mesFormat, Informes_Categoria, costosFijos
 };
 
 export async function Uman(data, Rentabilidad, MargenTotal, SumaRentabilidad, SumaMargenTotal, cantidadPlatos) {
-    console.log('Uman execute\n')
     
     // Uman:
     //     - Margen de contribucion total (MT): margen unitario * cantidad vendida : si el Margen de contribucion total es mayor al promedio es Alto, sino Bajo
@@ -608,7 +587,6 @@ export async function Uman(data, Rentabilidad, MargenTotal, SumaRentabilidad, Su
     const promedioMargenTotal = Number((SumaMargenTotal / cantidadPlatos).toFixed(2));
 
     
-    console.log('Uman finish\n')
     return data.map((plato, index) => {
         const MU = Rentabilidad[index] < promedioMargen ? 'Bajo' : 'Alto';
         const MT = MargenTotal[index] < promedioMargenTotal ? 'Bajo' : 'Alto';
@@ -636,7 +614,6 @@ export async function Uman(data, Rentabilidad, MargenTotal, SumaRentabilidad, Su
 }
 
 export async function Merrick(data, Rentabilidad, SumaCantidadVendida, SumaRentabilidad, cantidadPlatos) {
-    console.log('Merrick execute\n')
     /*
     Merrick&Jones:
         - Cantidad vendida (CV): mayor al promedio es Alto, sino es Bajo
@@ -653,7 +630,6 @@ export async function Merrick(data, Rentabilidad, SumaCantidadVendida, SumaRenta
     const promedioMargenUnitario = Number((SumaRentabilidad / cantidadPlatos).toFixed(2));
 
     // Clasificar cada plato según CV y M
-    console.log('Merrick finish\n')
     return data.map((plato, index) => {
         const CV = plato.Cantidad_vendida > promedioCantidadVendida ? 'Alto' : 'Bajo';
         const M = Rentabilidad[index] > promedioMargenUnitario ? 'Alto' : 'Bajo';
