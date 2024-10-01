@@ -43,12 +43,14 @@ export const executeInform = async (mesFormat, Informes_Categoria) => {
         VentasTotales.push(Number(ventasTotales.toFixed(2)));
     }
 
-    const SumaMargenTotal = MargenTotal.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
-    const SumaVentasTotales = VentasTotales.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
-    const SumaCantidadVendida = Cantidad_vendida.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
-    const SumaDiasCarta = Dias_en_carta.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
-    const SumaCostos = Costos.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
-    const SumaRentabilidad = Rentabilidad.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
+    const sumarArray = (array) => array.reduce((acumulador, valorActual) => acumulador + valorActual, 0);
+
+    const SumaMargenTotal = sumarArray(MargenTotal);
+    const SumaVentasTotales = sumarArray(VentasTotales);
+    const SumaCantidadVendida = sumarArray(Cantidad_vendida);
+    const SumaDiasCarta = sumarArray(Dias_en_carta);
+    const SumaCostos = sumarArray(Costos);
+    const SumaRentabilidad = sumarArray(Rentabilidad);
     
 
     const omnesResult = await omnesFunction(Valor_Venta, Cantidad_vendida) 
@@ -84,7 +86,7 @@ export const executeInform = async (mesFormat, Informes_Categoria) => {
         MillerResults,
         umanResults, 
         merrickResults, 
-        // multiCriterioResults, 
+        multiCriterioResults, 
         multiCriterioFinal
     } 
     
@@ -112,7 +114,6 @@ export const omnesFunction = async (Valor_Venta, Cantidad_vendida) => {
 
 
     //1er principio
-    //Usar la misma logica de Js para tener una sola consulta
     const AmplitudGama = Number(((VA - VB) / 3).toFixed(2));
     const Z1 = [VB, VB + AmplitudGama]
     const Z2 = [VB + AmplitudGama, VB + (2* AmplitudGama)]
@@ -126,22 +127,24 @@ export const omnesFunction = async (Valor_Venta, Cantidad_vendida) => {
     const platosZ2 = await definePlatosZones(Valor_Venta, Z2)
     const platosZ3 = await definePlatosZones(Valor_Venta, Z3)
 
-    const cumpleOmnes1 = platosZ1 + platosZ3 === platosZ2 ? true : false
+    const cumpleOmnes1 = platosZ1 + platosZ3 === platosZ2 ? "Cumple" : "No cumple"
 
-//  2do principio
+    //2do principio
 
     const apertura2 = VA / VB
-    const cumpleOmnes2 = cantidadPlatos <= 9 ? (apertura2 <= 2.5 ? true : false) : (apertura2 <= 3 ? true : false)
+    const cumpleOmnes2 = cantidadPlatos <= 9 ? (apertura2 <= 2.5 ? 'Cumple' : 'No cumple') : (apertura2 <= 3 ? 'Cumple' : 'No cumple')
 
-// 3er principio: -1 significa menor a 0.85, 0 significa entre 0.85 y 1.05, 1 significa mas de 1.05
+    // 3er principio: -1 significa menor a 0.85, 0 significa entre 0.85 y 1.05, 1 significa mas de 1.05
     const PMP = sumaTotalVentas / sumaCantidadVendida
     const PMO = sumaValorVenta / cantidadPlatos
 
-    const cumpleOmnes3 = PMP / PMO < 0.85 ? -1 : ((PMP / PMO >= 0.85 && PMP / PMO <= 1.05) ? 0 : 1)
+    // const cumpleOmnes3 = PMP / PMO < 0.85 ? -1 : ((PMP / PMO >= 0.85 && PMP / PMO <= 1.05) ? 0 : 1)
+    
+    const cumpleOmnes3 = Number((PMP / PMO).toFixed(2))
 
 //4to principio
 
-    const cumpleOmnes4 = `Promocion debe ser menor a ${Number(PMP.toFixed(2))}`
+    const cumpleOmnes4 = `Promoción debe ser menor a ${Number(PMP.toFixed(2))}`
 
     const omnesResult = {
         '1 principio': cumpleOmnes1,
@@ -603,8 +606,8 @@ export async function Uman(data, Rentabilidad, MargenTotal, SumaRentabilidad, Su
     const promedioMargen = Number((SumaRentabilidad / cantidadPlatos).toFixed(2));
     const promedioMargenTotal = Number((SumaMargenTotal / cantidadPlatos).toFixed(2));
 
-    
-    return data.map((plato, index) => {
+    const resultado = {}
+    data.map((plato, index) => {
         const MU = Rentabilidad[index] < promedioMargen ? 'Bajo' : 'Alto';
         const MT = MargenTotal[index] < promedioMargenTotal ? 'Bajo' : 'Alto';
 
@@ -621,13 +624,14 @@ export async function Uman(data, Rentabilidad, MargenTotal, SumaRentabilidad, Su
         }
         
 
-        return {
-            Nombre: plato.Nombre,
-            MU,
-            MT,
+        resultado[plato.Nombre] = {
+            margenUnitario: MU,
+            margenTotal: MT,
             Uman: umanClasificacion
         };
     });
+
+    return resultado
 }
 
 export async function Merrick(data, Rentabilidad, SumaCantidadVendida, SumaRentabilidad, cantidadPlatos) {
@@ -646,8 +650,8 @@ export async function Merrick(data, Rentabilidad, SumaCantidadVendida, SumaRenta
     const promedioCantidadVendida = Number((SumaCantidadVendida / cantidadPlatos).toFixed(2));
     const promedioMargenUnitario = Number((SumaRentabilidad / cantidadPlatos).toFixed(2));
 
-    // Clasificar cada plato según CV y M
-    return data.map((plato, index) => {
+    const resultado = {}
+    data.map((plato, index) => {
         const CV = plato.Cantidad_vendida > promedioCantidadVendida ? 'Alto' : 'Bajo';
         const M = Rentabilidad[index] > promedioMargenUnitario ? 'Alto' : 'Bajo';
 
@@ -662,12 +666,15 @@ export async function Merrick(data, Rentabilidad, SumaCantidadVendida, SumaRenta
         } else {
             grupoClasificacion = 'Grupo D';
         }
-        
-        return {
-            Nombre: plato.Nombre,
-            CV,
-            M,
-            Grupo: grupoClasificacion
-        };
+    
+       resultado[plato.Nombre] = {
+            cantidadVendida: CV,
+            margenUnitario: M,
+            Merrick: grupoClasificacion
+       }
+
+
     });
+
+    return resultado
 }
