@@ -1,162 +1,84 @@
 import Plato from "../../dao/models/Plate.js";
 import { Sequelize, Op } from "sequelize";
 
-export const omnesFunction = async (mesFormat, Informes_Categoria) => { 
-/*
-    1. Fetchear en la tabla Costos todas la fila menos id y mes SEGUN EL MES. 
-    2. Fetcher en la tabla Platos todas las FILAS menos ID SEGUN Mes_plato y Categoria
-
-    1. Omnes:
-    1er principio:
-
-    1. Calcular Valor de Venta mas ALTO o VA = SELECT Max(Valor_venta) FROM Platos WHERE Mes_Plato = mesFormat AND Categoria = Informes_Categoria
-
-    2. Calcular Valor de Venta mas BAJO o VB = SELECT Min(Valor_venta) FROM Platos WHERE Mes_Plato = mesFormat AND Categoria = Informes_Categoria
-
-    3. Calcular Amplitud de Gama = (VA - VB) / 3
-    */
-
-    const ValorVentaAlto = await Plato.findOne({
-        attributes: [[Sequelize.fn('MAX', Sequelize.col('Valor_Venta')), 'maxValorVenta']],
-        where : {
+export const omnesFunction = async (mesFormat, Informes_Categoria) => {     
+    console.log('OmnesFunction execute\n')
+    console.time('start')
+    //Mover todo la comprension para las formulas en la documentacion/readme
+    //de repente puedo mejorar haciendo query a menos datos y calculando todo en js.
+    //Por ejemplo, todas las funciones de sequelize las puedo reemplazar por funciones JS. Solo recibir los datos en objetos y arrays y hacer los calculos con JS. 
+    
+    //1er principio    
+    const columnas = await Plato.findAll({
+        attributes: [
+            'Valor_Venta',  
+            'Cantidad_vendida'  
+        ],
+        where: {
             Mes_plato: mesFormat,
             Categoria: Informes_Categoria
-        }
+        },
+        raw: true  
     })
 
-    const ValorVentaBajo = await Plato.findOne({
-        attributes: [[Sequelize.fn('MIN', Sequelize.col('Valor_Venta')), 'minValorVenta']],
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria
-        }
-    })
+    const Valor_Venta = columnas.map(item => Number(item.Valor_Venta));
+    const Cantidad_vendida = columnas.map(item => Number(item.Cantidad_vendida));
 
-    const VA = Number(ValorVentaAlto.get('maxValorVenta'))
-    const VB = Number(ValorVentaBajo.get('minValorVenta'))
+    const VA = Math.max(...Valor_Venta) //Maximo valor de venta
+    const VB = Math.min(...Valor_Venta) //Minimo valor de venta
+    const cantidadPlatos = Valor_Venta.length // Cantidad de platos
+    const sumaTotalVentas = Valor_Venta.reduce((total, valor, index) => {
+        return total + valor * Cantidad_vendida[index];
+    }, 0);
+    const sumaCantidadVendida = Cantidad_vendida.reduce((total, valor) => {
+        return total + valor;
+    }, 0); 
+    const sumaValorVenta = Valor_Venta.reduce((total, valor) => {
+        return total + valor;
+    }, 0); 
 
+
+
+    //1er principio
+    //Usar la misma logica de Js para tener una sola consulta
     const AmplitudGama = Number(((VA - VB) / 3).toFixed(2));
-
     const Z1 = [VB, VB + AmplitudGama]
-
     const Z2 = [VB + AmplitudGama, VB + (2* AmplitudGama)]
-
     const Z3 = [VB + (2* AmplitudGama), VB + (3 * AmplitudGama)]
 
-
-    const platosZ1 = await Plato.count({
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-            Valor_Venta: {
-                [Sequelize.Op.between]: Z1
-        
+    const definePlatosZones = async (zone) => { 
+        await Plato.count({
+            where : {
+                Mes_plato: mesFormat,
+                Categoria: Informes_Categoria,
+                Valor_Venta: {
+                    [Sequelize.Op.between]: zone
+            
+                }
             }
-        }
-    })
+        })
+    }
 
-    const platosZ2 = await Plato.count({
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-            Valor_Venta: {
-                [Sequelize.Op.between]: Z2
-        
-            }
-        }
-    })
-
-    const platosZ3 = await Plato.count({
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-            Valor_Venta: {
-                [Sequelize.Op.between]: Z3
-        
-            }
-        }
-    })
+    const platosZ1 = await definePlatosZones(Z1)
+    const platosZ2 = await definePlatosZones(Z2)
+    const platosZ3 = await definePlatosZones(Z3)
 
     const cumpleOmnes1 = platosZ1 + platosZ3 === platosZ2 ? true : false
 
-    /*
-    2do principio:
-        1. VA / VB = Apertura
-        2. Cuantos platos hay en ese mes en esa categoria
-        3. Hasta 9 platos: si Apertura es menor a 2.5, cumple
-            10 platos o mas: si Apertura es menor a 3, cumple
-    
-    */ 
+//  2do principio
 
     const apertura2 = VA / VB
-
-    const cantidadPlatos = await Plato.count({
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-        }
-    })
-
     const cumpleOmnes2 = cantidadPlatos <= 9 ? (apertura2 <= 2.5 ? true : false) : (apertura2 <= 3 ? true : false)
 
-
-    /*
-    3er principio:
-
-    1. LISTO Calcular PMP: Suma de Ventas Totales / Suma de Cantidad Vendida
-    2. Calcular PMO: Suma de Valor Venta / Cantidad de platos ofertados
-    3. Calcular PMP / PMO 
-    4. Si resultado menor a 0.85: disminuir los precios y calcular un nuevo precio. 
-        Si el resultado entre 0.85 y 1.05: mantener los precios
-        Si el resultado mayor a 1.05: aumentar los precios y calcular un nuevo precio
-    */
-
-
-    //Falto en la tabla MySQL tener las Ventas Totales = Cantidad Vendida * Valor de venta
-
-    const ventasTotales = await Plato.findOne({
-        attributes: [[Sequelize.fn('SUM', Sequelize.literal('Cantidad_vendida * Valor_Venta')), 'totalVentas']],
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-        }
-    })
-
-    const cantidadVendida = await Plato.findOne({
-        attributes: [[Sequelize.fn('SUM', Sequelize.col('Cantidad_vendida')), 'cantidadVendida']],
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-        }
-    })
-
-    const sumaTotalVentas = ventasTotales.get('totalVentas')
-    const sumaCantidadVendida = cantidadVendida.get('cantidadVendida')
-
+// 3er principio: -1 significa menor a 0.85, 0 significa entre 0.85 y 1.05, 1 significa mas de 1.05
     const PMP = sumaTotalVentas / sumaCantidadVendida
-
-    const valorVenta = await Plato.findOne({
-        attributes: [[Sequelize.fn('SUM', Sequelize.col('Valor_Venta')), 'valorVenta']],
-        where : {
-            Mes_plato: mesFormat,
-            Categoria: Informes_Categoria,
-        }
-    })
-
-    const sumaValorVenta = valorVenta.get('valorVenta')
-
     const PMO = sumaValorVenta / cantidadPlatos
 
     const cumpleOmnes3 = PMP / PMO < 0.85 ? -1 : ((PMP / PMO >= 0.85 && PMP / PMO <= 1.05) ? 0 : 1)
-    //-1 significa menor a 0.85, 0 significa entre 0.85 y 1.05, 1 significa mas de 1.05
 
-    /*
-    4to principio:
+//4to principio
 
-    1. La promocion debe ser menor a PMP.
-    */ 
-
-    const cumpleOmnes4 = `Promocion debe ser menor a ${PMP}`
+    const cumpleOmnes4 = `Promocion debe ser menor a ${Number(PMP.toFixed(2))}`
 
     const omnesResult = {
         1: cumpleOmnes1,
@@ -165,10 +87,14 @@ export const omnesFunction = async (mesFormat, Informes_Categoria) => {
         4: cumpleOmnes4
     }
 
+    console.timeEnd('start')
+    console.log('\nOmnesFunction finish')
     return omnesResult
 }
 
+
 //Corregir BCG, es por la cantidad promedio, no por 10%
+//Creo que el alg esta bien porque solo hace una consulta
 export async function BCGPop(mesFormat, Informes_Categoria) {
 
     /*

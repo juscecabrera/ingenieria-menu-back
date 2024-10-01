@@ -146,47 +146,48 @@ export const createInforms = async (req, res) => {
     
     */
 
-    console.time('startFunctions')
     const omnesResult = await omnesFunction(mesFormat, Informes_Categoria)
-    const ADLResults = await ADL(mesFormat, Informes_Categoria)    
-    const IRPResults = await IRP(mesFormat, Informes_Categoria)
-    const IndexPopularidadResults = await IndexPopularidad(mesFormat, Informes_Categoria)
-    const CostoMargenAnalysisResults = await CostoMargenAnalysis(mesFormat, Informes_Categoria);
-    const BCGResults = await BCGPop(mesFormat, Informes_Categoria)
-    const MillerResults = await Miller(mesFormat, Informes_Categoria);
-    const umanResults = await Uman(mesFormat, Informes_Categoria)
-    const merrickResults = await Merrick(mesFormat, Informes_Categoria)
+    // const ADLResults = await ADL(mesFormat, Informes_Categoria)    
+    // const IRPResults = await IRP(mesFormat, Informes_Categoria)
+    // const IndexPopularidadResults = await IndexPopularidad(mesFormat, Informes_Categoria)
+    // const CostoMargenAnalysisResults = await CostoMargenAnalysis(mesFormat, Informes_Categoria);
+    // const BCGResults = await BCGPop(mesFormat, Informes_Categoria)
+    // const MillerResults = await Miller(mesFormat, Informes_Categoria);
+    // const umanResults = await Uman(mesFormat, Informes_Categoria)
+    // const merrickResults = await Merrick(mesFormat, Informes_Categoria)
 
-    const multiCriterioObject = {
-        BCGResults,
-        CostoMargenAnalysisResults,
-        MillerResults,
-        IRPResults,
-        IndexPopularidadResults
-    }
-    const multiCriterioResults = multiCriterioFunction(multiCriterioObject) //los puntajes detallados
+    // const multiCriterioObject = {
+    //     BCGResults,
+    //     CostoMargenAnalysisResults,
+    //     MillerResults,
+    //     IRPResults,
+    //     IndexPopularidadResults
+    // }
+    // const multiCriterioResults = multiCriterioFunction(multiCriterioObject) //los puntajes detallados
     // const multiCriterioFinal = multiCriterioResultsOnly(multiCriterioResults) //solo los puntajes
 
-    const EQResult = await PuntoEquilibrio(mesFormat, Informes_Categoria, 25000) //Este aun no esta pulido, falta trabajar y consultar con Rodrigo, faltan los costos fijos de la otra tabla
+    // const EQResult = await PuntoEquilibrio(mesFormat, Informes_Categoria, 25000) //Este aun no esta pulido, falta trabajar y consultar con Rodrigo, faltan los costos fijos de la otra tabla
 
 
-    const resultadosFinalesInformes = {
-        omnesResult, 
-        ADLResults, 
-        IRPResults,
-        IndexPopularidadResults,
-        CostoMargenAnalysisResults,
-        BCGResults,
-        MillerResults,
-        umanResults, 
-        merrickResults,
-        multiCriterioResults
-    }
+    // const resultadosFinalesInformes = {
+    //     omnesResult, 
+    //     ADLResults, 
+    //     IRPResults,
+    //     IndexPopularidadResults,
+    //     CostoMargenAnalysisResults,
+    //     BCGResults,
+    //     MillerResults,
+    //     umanResults, 
+    //     merrickResults,
+    //     multiCriterioResults
+    // }
     
-    console.timeEnd('startFunctions')
+
+    
+
+
     try {
-        // console.log(resultadosFinalesInformes);
-        console.log(JSON.stringify(multiCriterioResults));
+        console.log(omnesResult);
     } catch (error) {
         res.status(500).json({ error: 'Error creating inform.' });
     }
