@@ -320,7 +320,10 @@ export async function ADL(data, Cantidad_vendida, Rentabilidad) {
 
         resultado[nombre] = {
             rentabilidadCategoria,
+            rentabilidadPuntaje: rentabilidad,
             cantidadVendidaCategoria,
+            cantidadVendidaPuntaje: cantidadVendida
+
         };
     }); 
 
@@ -458,8 +461,8 @@ export const multiCriterioFunction = (multiCriterio) => {
     
     nombresPlatos.forEach(nombrePlato => {
         const bcgCategory = multiCriterio.BCGResults[nombrePlato].BCGCategory;
-        const costoMargen = multiCriterio.CostoMargenAnalysisResults[nombrePlato][2]; // CMA
-        const miller = multiCriterio.MillerResults[nombrePlato][2]; // MM
+        const costoMargen = multiCriterio.CostoMargenAnalysisResults[nombrePlato].costoMargen; // CMA
+        const miller = multiCriterio.MillerResults[nombrePlato].millerMatrix; // MM
         const irp = multiCriterio.IRPResults[nombrePlato];
         const indexPopularidad = multiCriterio.IndexPopularidadResults[nombrePlato];
 
@@ -485,7 +488,6 @@ export const multiCriterioFunction = (multiCriterio) => {
 
         resultadosArray.push(resultado);
     });
-
 
     return resultadosArray;
 };
