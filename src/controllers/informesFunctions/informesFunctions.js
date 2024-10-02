@@ -262,18 +262,21 @@ export async function ADL(data, Cantidad_vendida, Rentabilidad) {
     const RentabilidadSize = (maxRent - minRent) / 4
 
     //Rentabilidad
-    const Crecimiento =  [CVB + (3 * CantidadVentasSize), CVA]
-    const Introduccion = [CVB + (2 * CantidadVentasSize), CVB + (3 * CantidadVentasSize)]
-    const Madurez = [CVB + CantidadVentasSize, CVB + (2 *CantidadVentasSize)]
-    const Declinacion = [CVB, CVB + CantidadVentasSize]
+    const Crecimiento = [minRent +  (3 * RentabilidadSize),  maxRent]
+    const Introduccion = [minRent +  (2 * RentabilidadSize),  minRent +  (3 * RentabilidadSize)]
+    const Madurez = [minRent + RentabilidadSize,  minRent +  (2 * RentabilidadSize)]
+    const Declinacion = [minRent, minRent + RentabilidadSize]
 
 
     //Cantidad Vendida
-    const Dominante = [minRent +  (4 * RentabilidadSize),  maxRent]
-    const Fuerte = [minRent +  (3 * RentabilidadSize),  minRent +  (4 * RentabilidadSize)]
-    const Favorable = [minRent +  (2 * RentabilidadSize),  minRent +  (3 * RentabilidadSize)]
-    const Debil = [minRent + RentabilidadSize,  minRent +  (2 * RentabilidadSize)]
-    const Marginal = [minRent, minRent + RentabilidadSize]
+    const Dominante = [CVB + (4 * CantidadVentasSize), CVA]
+    const Fuerte = [CVB + (3 * CantidadVentasSize), CVB + (4 * CantidadVentasSize)]
+    const Favorable = [CVB + (2 * CantidadVentasSize), CVB + (3 * CantidadVentasSize)]
+    const Debil = [CVB + CantidadVentasSize, CVB + (2 *CantidadVentasSize)]
+    const Marginal = [CVB, CVB + CantidadVentasSize]
+
+    const rentabilidadNiveles = [minRent, Declinacion[1], Madurez[1], Introduccion[1], maxRent] 
+    const cantidadVendidaNiveles = [CVB, Marginal[1], Debil[1], Favorable[1], Fuerte[1], CVA ]
 
     const resultado = {};
     data.forEach((plato, index) => {
@@ -321,8 +324,10 @@ export async function ADL(data, Cantidad_vendida, Rentabilidad) {
         resultado[nombre] = {
             rentabilidadCategoria,
             rentabilidadPuntaje: rentabilidad,
+            rentabilidadNiveles : rentabilidadNiveles,
             cantidadVendidaCategoria,
-            cantidadVendidaPuntaje: cantidadVendida
+            cantidadVendidaPuntaje: cantidadVendida,
+            cantidadVendidaNiveles: cantidadVendidaNiveles
 
         };
     }); 

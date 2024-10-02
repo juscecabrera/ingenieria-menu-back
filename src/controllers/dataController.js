@@ -152,7 +152,7 @@ export const createInforms = async (req, res) => {
     const resultadosFinales = await executeInform(mesFormat, Informes_Categoria)
 
     try {
-        console.log(resultadosFinales);
+        console.log(JSON.stringify(resultadosFinales.ADLResults, null, 2));
         res.status(200).json(resultadosFinales);
     } catch (error) {
         res.status(500).json({ error: 'Error creating inform.' });
