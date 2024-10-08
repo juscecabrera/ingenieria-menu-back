@@ -1,19 +1,58 @@
-import { and, Sequelize } from "sequelize";
+import { and, Sequelize, Op } from "sequelize";
 import config from "../config.js";
 import Plato from "../dao/models/Plate.js";
 import convertToMonthYear from "../utils/convertToMonthYear.js";
 import { omnesFunction, BCGPop, ADL, IRP, IndexPopularidad, CostoMargenAnalysis, Miller, multiCriterioFunction, multiCriterioResultsOnly, PuntoEquilibrio, Uman, Merrick, executeInform } from './informesFunctions/informesFunctions.js'
 
-// await sequelize.authenticate();
 
 //READ - Conseguir todos los platos
 export const getPlates = async (req, res) => {
+    const { mesPlato, yearPlato, categoria } = req.query;
+
     try {
-        const plates = await Plato.findAll();
+        
+        const queryOptions = {};
+        let dateFilter;
+
+        // Manejo de los diferentes casos según el mesPlato y yearPlato
+        if (mesPlato !== undefined && mesPlato !== null) {
+            if (yearPlato !== undefined && yearPlato !== null) {
+                // Si hay mes y año: tener el formato Mes-Year (Ej: Ene-2021)
+                dateFilter = `${mesPlato}-${yearPlato}`;
+            } else {
+                // Si hay mes pero no hay año: tener el formato Mes-*, es decir, cualquier año
+                dateFilter = `${mesPlato}-%`;  // Usar '%' para coincidir con cualquier año en SQL
+            }
+        } else {
+            if (yearPlato !== undefined && yearPlato !== null) {
+                dateFilter = `%-${yearPlato}`;  // Usar '%' para coincidir con cualquier mes en SQL
+            }
+            // Si no hay mes pero hay año: tener el formato *-Year, es decir, cualquier mes
+        }
+
+        // Agregar el filtro de fecha si se ha generado uno
+        if (dateFilter) {
+            queryOptions.Mes_plato = {
+                [Op.like]: dateFilter  // Usar el operador Sequelize 'like' para permitir comodines ('%')
+            };
+        }
+
+        // Agregar el filtro de categoría si existe
+        if (categoria) {
+            queryOptions.Categoria = categoria;  
+        }
+
+        console.log(queryOptions);
+        
+        // Consulta a la base de datos con los filtros generados
+        const plates = await Plato.findAll({
+            where: queryOptions
+        });
+
         res.status(200).json(plates);
-      } catch (err) {
+    } catch (err) {
         res.status(500).json({ error: 'Error fetching plates.' });
-      }
+    }
 }
 
 //READ - Conseguir plato por ID
