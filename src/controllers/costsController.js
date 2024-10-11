@@ -13,7 +13,14 @@ export const getCosts = async (req, res) => {
 export const createCosts = async (req, res) => { 
     const { Sueldo_Cocina, Sueldo_Servicio, Sueldo_Administrativos, Alquiler, Depreciacion, Servicios_basicos, Publicidad, Internet, Otros, Mes } = req.body;
     
-    const mesFormat = convertToMonthYear(Mes)
+    let mesFormat
+    try {
+        mesFormat = convertToMonthYear(Mes)
+        console.log(mesFormat);
+    } catch (error) {
+        console.error('Error:', error.message);
+        return 'Error: Mes inválido, por favor ingresa un valor entre 1 y 12.';
+    }
 
     try {
         // Crea un nuevo registro en la tabla Platos

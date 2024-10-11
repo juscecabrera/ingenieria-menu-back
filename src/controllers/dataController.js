@@ -75,7 +75,14 @@ export const createPlates = async (req, res) => {
     const { Mes_plato, Categoria_plato, Nombre_plato, Cantidad_vendida_plato, Precio_plato, Costo_plato, Dias_plato } = req.body;
 
     
-    const mesFormat = convertToMonthYear(Mes_plato)
+    let mesFormat
+    try {
+        mesFormat = convertToMonthYear(Mes_plato)
+        console.log(mesFormat);
+    } catch (error) {
+        console.error('Error:', error.message);
+        return 'Error: Mes inválido, por favor ingresa un valor entre 1 y 12.';
+    }
 
     const IGV = 0.18
     const Rec_consumo = 0.10

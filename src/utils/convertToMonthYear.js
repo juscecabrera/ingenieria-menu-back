@@ -9,9 +9,10 @@ export default function convertToMonthYear(input) {
 
     const monthIndex = parseInt(input) - 1;
 
-    if (monthIndex >= 0 && monthIndex < monthNames.length) {
+    if (!isNaN(monthIndex) && monthIndex >= 0 && monthIndex < monthNames.length) {
         return `${monthNames[monthIndex]}-${year}`;
     } else {
-        throw new Error('Mes no válido');
+        // En lugar de lanzar un error, puedes retornar un mensaje o valor por defecto
+        return 'Mes no válido';
     }
 }
